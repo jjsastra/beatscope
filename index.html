@@ -101,6 +101,9 @@
   .hudTop, .hudBottom{
     display:flex; justify-content:space-between; align-items:center; pointer-events:auto;
   }
+  .hudBottom{
+    flex-direction:column; align-items:flex-end; justify-content:flex-end;
+  }
   .badge{
     font-size:11px; letter-spacing:0.16em; color:var(--hud-fg-dim);
     background:var(--hud-bg); border:1px solid var(--hud-border);
@@ -121,9 +124,23 @@
   .ctlBtn.active{border-color:var(--accent); color:var(--accent);}
   .ctlBtn:active{transform:scale(0.95);}
 
-  #sensWrap{display:flex; align-items:center; gap:8px; padding:0 6px;}
-  #sensWrap label{font-size:10px; color:var(--hud-fg-dim); letter-spacing:0.08em;}
-  #sens{width:90px; accent-color:var(--accent);}
+  #settingsPanel{
+    display:none;
+    flex-direction:column;
+    gap:10px;
+    background:var(--hud-bg);
+    border:1px solid var(--hud-border);
+    padding:14px;
+    border-radius:6px;
+    backdrop-filter: blur(8px);
+    margin-bottom:8px;
+    max-width:300px;
+    pointer-events:auto;
+  }
+  #settingsPanel.open{display:flex;}
+  .settingRow{display:flex; flex-direction:column; gap:5px;}
+  .settingRow label{font-size:9px; color:var(--hud-fg-dim); letter-spacing:0.06em; text-transform:uppercase;}
+  .settingRow input[type=range]{width:100%; accent-color:var(--accent);}
 
   #modeLabel{
     position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -154,13 +171,25 @@
     <div class="badge" id="bpmBadge">-- <span style="color:var(--hud-fg-dim)">bpm</span></div>
   </div>
   <div class="hudBottom">
+    <div id="settingsPanel">
+      <div class="settingRow">
+        <label>SENSITIVITY</label>
+        <input type="range" id="sens" min="0.5" max="2.5" step="0.05" value="1.2">
+      </div>
+      <div class="settingRow">
+        <label>AUTO-CYCLE SPEED (beats per change)</label>
+        <input type="range" id="cycleEvery" min="4" max="48" step="2" value="16">
+      </div>
+      <div class="settingRow">
+        <label>RANDOMNESS (chance of a wild jump vs. next in line)</label>
+        <input type="range" id="chaos" min="0" max="1" step="0.05" value="0.25">
+      </div>
+    </div>
     <div class="controls">
       <button class="ctlBtn" id="modeBtn" title="Next visual">MODE ▸</button>
       <button class="ctlBtn" id="autoBtn" title="Auto-cycle modes">AUTO</button>
-      <div id="sensWrap">
-        <label>SENS</label>
-        <input type="range" id="sens" min="0.5" max="2.5" step="0.05" value="1.2">
-      </div>
+      <button class="ctlBtn" id="morphBtn" title="Morph/crossfade between visuals">MORPH</button>
+      <button class="ctlBtn" id="settingsBtn" title="Settings">⚙</button>
       <button class="ctlBtn" id="fsBtn" title="Fullscreen">⛶</button>
     </div>
   </div>
@@ -182,7 +211,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v1.2";
+  const APP_VERSION = "v1.3";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -288,10 +317,31 @@
   let hueBase = 200;
   let rotation = 0;
   let particles = [];
-  const MODES = ['kaleido','plasma','starfield','bars','vortex','fractal','warpgrid'];
+  const MODES = ['kaleido','plasma','starfield','bars','vortex','fractal','warpgrid',
+                 'aurora','nexus','spinner','julia','nested','liquid','lasers','maze','glowsticks','horizon'];
+
+  function modeTrailAlpha(modeName){
+    // how quickly the previous frame fades — controls trail length per mode
+    switch(modeName){
+      case 'glowsticks':
+      case 'vortex':
+      case 'julia':
+        return 0.08;
+      case 'bars':
+      case 'warpgrid':
+      case 'maze':
+      case 'nested':
+        return 0.24;
+      default:
+        return 0.16;
+    }
+  }
   let modeIndex = 0;
   let autoCycle = false;
   let autoCycleBeats = 0;
+  let morphEnabled = false;
+  let transitioning = false;
+  let transFrom = 0, transTo = 0, transStart = 0, transDuration = 1300;
 
   function spawnBurst(cx, cy, count, energy){
     for(let i=0;i<count;i++){
@@ -334,9 +384,10 @@
     const isBeat = detectBeat(bass, now);
     if(isBeat){
       spawnBurst(W/2, H/2, 10+Math.floor(bass/8), bass);
-      if(autoCycle){
+      if(autoCycle && !transitioning){
         autoCycleBeats++;
-        if(autoCycleBeats % 16 === 0){ nextMode(); }
+        const cycleEvery = parseInt(document.getElementById('cycleEvery').value, 10);
+        if(autoCycleBeats % cycleEvery === 0){ startTransition(pickNextMode()); }
       }
     }
     beatFlash *= 0.90;
@@ -347,18 +398,25 @@
     document.getElementById('bpmBadge').innerHTML =
       (bpmEstimate>40 && bpmEstimate<220 ? bpmEstimate : '--') + ' <span style="color:var(--hud-fg-dim)">bpm</span>';
 
-    // background fade (trail effect)
-    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    // background fade (trail effect) — rate depends on active mode(s)
+    let trailAlpha;
+    if(transitioning){
+      const t = Math.min(1, (now-transStart)/transDuration);
+      trailAlpha = modeTrailAlpha(MODES[transFrom])*(1-t) + modeTrailAlpha(MODES[transTo])*t;
+    } else {
+      trailAlpha = modeTrailAlpha(MODES[modeIndex]);
+    }
+    ctx.fillStyle = `rgba(0,0,0,${trailAlpha})`;
     ctx.fillRect(0,0,W,H);
 
-    const mode = MODES[modeIndex];
-    if(mode==='kaleido') drawKaleido(bass, mid, treble, overall);
-    else if(mode==='plasma') drawPlasma(bass, mid, treble, overall);
-    else if(mode==='starfield') drawStarfield(bass, mid, treble, overall);
-    else if(mode==='bars') drawBars(bass, mid, treble, overall);
-    else if(mode==='vortex') drawVortex(bass, mid, treble, overall);
-    else if(mode==='fractal') drawFractal(bass, mid, treble, overall);
-    else if(mode==='warpgrid') drawWarpGrid(bass, mid, treble, overall);
+    if(transitioning){
+      const t = Math.min(1, (now-transStart)/transDuration);
+      ctx.save(); ctx.globalAlpha = 1-t; renderMode(MODES[transFrom], bass,mid,treble,overall); ctx.restore();
+      ctx.save(); ctx.globalAlpha = t; renderMode(MODES[transTo], bass,mid,treble,overall); ctx.restore();
+      if(t>=1){ transitioning=false; modeIndex=transTo; }
+    } else {
+      renderMode(MODES[modeIndex], bass,mid,treble,overall);
+    }
 
     drawParticles(dt);
 
@@ -366,6 +424,26 @@
       ctx.fillStyle = `rgba(255,255,255,${beatFlash*0.05})`;
       ctx.fillRect(0,0,W,H);
     }
+  }
+
+  function renderMode(mode, bass,mid,treble,overall){
+    if(mode==='kaleido') drawKaleido(bass, mid, treble, overall);
+    else if(mode==='plasma') drawPlasma(bass, mid, treble, overall);
+    else if(mode==='starfield') drawStarfield(bass, mid, treble, overall);
+    else if(mode==='bars') drawBars(bass, mid, treble, overall);
+    else if(mode==='vortex') drawVortex(bass, mid, treble, overall);
+    else if(mode==='fractal') drawFractal(bass, mid, treble, overall);
+    else if(mode==='warpgrid') drawWarpGrid(bass, mid, treble, overall);
+    else if(mode==='aurora') drawAurora(bass, mid, treble, overall);
+    else if(mode==='nexus') drawNexus(bass, mid, treble, overall);
+    else if(mode==='spinner') drawSpinner(bass, mid, treble, overall);
+    else if(mode==='julia') drawJulia(bass, mid, treble, overall);
+    else if(mode==='nested') drawNested(bass, mid, treble, overall);
+    else if(mode==='liquid') drawLiquid(bass, mid, treble, overall);
+    else if(mode==='lasers') drawLasers(bass, mid, treble, overall);
+    else if(mode==='maze') drawMaze(bass, mid, treble, overall);
+    else if(mode==='glowsticks') drawGlowsticks(bass, mid, treble, overall);
+    else if(mode==='horizon') drawHorizon(bass, mid, treble, overall);
   }
 
   function drawKaleido(bass,mid,treble,overall){
@@ -586,6 +664,355 @@
     ctx.restore();
   }
 
+  // --- Aurora: drifting translucent ribbon bands, northern-lights style ---
+  let auroraT = 0;
+  function drawAurora(bass,mid,treble,overall){
+    auroraT += 0.006 + mid*0.00015;
+    const bands = 6;
+    for(let b=0;b<bands;b++){
+      ctx.beginPath();
+      const baseY = H*(0.15 + b*0.13);
+      const amp = 40 + bass*0.7 + beatFlash*50;
+      for(let x=0;x<=W;x+=10){
+        const t = x/W;
+        const y = baseY
+          + Math.sin(t*Math.PI*2.2 + auroraT*1.3 + b*0.7) * amp
+          + Math.sin(t*Math.PI*5 + auroraT*2.1 - b) * amp*0.25;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      for(let x=W;x>=0;x-=10){
+        const t = x/W;
+        const y = baseY + 60 + Math.sin(t*Math.PI*2.2 + auroraT*1.3 + b*0.7) * amp*0.6;
+        ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      const hue = (hueBase + b*30)%360;
+      const grad = ctx.createLinearGradient(0,baseY-60,0,baseY+80);
+      grad.addColorStop(0, `hsla(${hue},85%,60%,0)`);
+      grad.addColorStop(0.5, `hsla(${hue},85%,60%,${0.12+treble*0.0015})`);
+      grad.addColorStop(1, `hsla(${hue},85%,60%,0)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+
+  // --- Nexus: drifting constellation nodes connected by proximity lines ---
+  let nexusNodes = [];
+  function ensureNexus(){
+    if(nexusNodes.length) return;
+    for(let i=0;i<38;i++){
+      nexusNodes.push({
+        x: Math.random()*W, y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.6, vy: (Math.random()-0.5)*0.6
+      });
+    }
+  }
+  function drawNexus(bass,mid,treble,overall){
+    ensureNexus();
+    const speedMul = 1 + overall*0.02 + beatFlash*2;
+    for(const n of nexusNodes){
+      n.x += n.vx*speedMul; n.y += n.vy*speedMul;
+      if(n.x<0||n.x>W) n.vx*=-1;
+      if(n.y<0||n.y>H) n.vy*=-1;
+    }
+    const linkDist = 130 + mid*0.4;
+    for(let i=0;i<nexusNodes.length;i++){
+      for(let j=i+1;j<nexusNodes.length;j++){
+        const a=nexusNodes[i], b=nexusNodes[j];
+        const d = Math.hypot(a.x-b.x, a.y-b.y);
+        if(d < linkDist){
+          const alpha = (1-d/linkDist)*0.5;
+          ctx.strokeStyle = `hsla(${hueBase%360},80%,65%,${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+    }
+    for(const n of nexusNodes){
+      const r = 2 + treble*0.02 + beatFlash*3;
+      ctx.fillStyle = `hsla(${(hueBase+40)%360},90%,70%,0.9)`;
+      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Spinner: rotating pinwheel of blades ---
+  let spinnerAngle = 0;
+  function drawSpinner(bass,mid,treble,overall){
+    spinnerAngle += 0.01 + mid*0.0006 + beatFlash*0.03;
+    const cx=W/2, cy=H/2;
+    const blades = 6 + (beatFlash>0.5?2:0);
+    const len = Math.min(W,H)*0.42 * (0.6+0.4*(bass/255));
+    ctx.save();
+    ctx.translate(cx,cy);
+    for(let i=0;i<blades;i++){
+      const ang = spinnerAngle + (Math.PI*2/blades)*i;
+      ctx.save();
+      ctx.rotate(ang);
+      const grad = ctx.createLinearGradient(0,0,len,0);
+      const hue = (hueBase + i*(360/blades))%360;
+      grad.addColorStop(0, `hsla(${hue},90%,60%,0.55)`);
+      grad.addColorStop(1, `hsla(${hue},90%,60%,0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.quadraticCurveTo(len*0.5, -len*0.14 - treble*0.3, len, 0);
+      ctx.quadraticCurveTo(len*0.5, len*0.14 + treble*0.3, 0, 0);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // --- Julia: escape-time fractal computed at low res, recolored & animated each frame ---
+  let julia = null;
+  function ensureJulia(){
+    if(julia) return;
+    const w=140, h=90;
+    const off = document.createElement('canvas'); off.width=w; off.height=h;
+    julia = { w, h, off, offCtx: off.getContext('2d'), iter: new Uint8Array(w*h), lastCompute:0 };
+  }
+  function computeJulia(t){
+    const { w,h,iter } = julia;
+    const cRe = -0.75 + 0.4*Math.sin(t*0.00013);
+    const cIm = 0.15 + 0.35*Math.cos(t*0.00017);
+    const maxIter = 42;
+    let idx=0;
+    for(let py=0; py<h; py++){
+      const y0 = (py/h - 0.5) * 2.6;
+      for(let px=0; px<w; px++){
+        let x = (px/w - 0.5) * 2.6;
+        let y = y0;
+        let it=0;
+        while(x*x+y*y < 4 && it<maxIter){
+          const xt = x*x - y*y + cRe;
+          y = 2*x*y + cIm;
+          x = xt;
+          it++;
+        }
+        iter[idx++] = it;
+      }
+    }
+    julia.lastCompute = t;
+  }
+  function drawJulia(bass,mid,treble,overall){
+    ensureJulia();
+    const now = performance.now();
+    if(now - julia.lastCompute > 1600 || (beatFlash>0.9 && now-julia.lastCompute>400)){
+      computeJulia(now);
+    }
+    const { w,h,iter,off,offCtx } = julia;
+    const img = offCtx.createImageData(w,h);
+    for(let i=0;i<w*h;i++){
+      const it = iter[i];
+      if(it>=42){ img.data[i*4]=0; img.data[i*4+1]=0; img.data[i*4+2]=0; img.data[i*4+3]=255; continue; }
+      const hue = (hueBase + it*9) % 360;
+      const [r,g,b] = hslToRgb(hue/360, 0.85, 0.25+0.45*(it/42));
+      img.data[i*4]=r; img.data[i*4+1]=g; img.data[i*4+2]=b; img.data[i*4+3]=255;
+    }
+    offCtx.putImageData(img,0,0);
+    const cx=W/2, cy=H/2;
+    const scale = 1.15 + Math.sin(rotation*2)*0.04 + beatFlash*0.08;
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rotation*0.3);
+    ctx.scale(scale,scale);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, -W/2, -H/2, W, H);
+    ctx.restore();
+  }
+  function hslToRgb(h,s,l){
+    let r,g,b;
+    if(s===0){ r=g=b=l; }
+    else{
+      const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+      const q = l<0.5 ? l*(1+s) : l+s-l*s;
+      const p = 2*l-q;
+      r = hue2rgb(p,q,h+1/3); g = hue2rgb(p,q,h); b = hue2rgb(p,q,h-1/3);
+    }
+    return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+  }
+
+  // --- Nested: concentric rotating polygons, counter-rotating layers ---
+  function drawNested(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const layers = 6;
+    const maxR = Math.min(W,H)*0.45;
+    for(let l=0;l<layers;l++){
+      const sides = 3 + l;
+      const r = maxR * ((l+1)/layers) * (0.85+0.15*Math.sin(rotation*2+l));
+      const rot = rotation * (l%2===0? 1: -1) * (1+l*0.15);
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      for(let s=0;s<=sides;s++){
+        const ang = (Math.PI*2/sides)*s;
+        const rr = r + beatFlash*20*(l%2===0?1:-1);
+        const x = Math.cos(ang)*rr, y = Math.sin(ang)*rr;
+        if(s===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      const hue = (hueBase + l*35)%360;
+      ctx.strokeStyle = `hsla(${hue},85%,60%,0.7)`;
+      ctx.lineWidth = 1.5 + (mid/255)*2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // --- Liquid: additive merging metaball-style blobs ---
+  let liquidBlobs = null;
+  function ensureLiquid(){
+    if(liquidBlobs) return;
+    liquidBlobs = [];
+    for(let i=0;i<6;i++){
+      liquidBlobs.push({
+        ax: Math.random()*Math.PI*2, ay: Math.random()*Math.PI*2,
+        sx: 0.4+Math.random()*0.5, sy: 0.4+Math.random()*0.5,
+        hue: Math.random()*360
+      });
+    }
+  }
+  function drawLiquid(bass,mid,treble,overall){
+    ensureLiquid();
+    const t = performance.now()*0.001;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for(const bl of liquidBlobs){
+      const x = W/2 + Math.sin(t*bl.sx + bl.ax)*W*0.28;
+      const y = H/2 + Math.cos(t*bl.sy + bl.ay)*H*0.28;
+      const r = 60 + bass*0.8 + beatFlash*40;
+      const grad = ctx.createRadialGradient(x,y,0,x,y,r);
+      const hue = (hueBase + bl.hue)%360;
+      grad.addColorStop(0, `hsla(${hue},90%,65%,0.5)`);
+      grad.addColorStop(1, `hsla(${hue},90%,65%,0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Lasers: rotating sweeping beams from center ---
+  let laserAngle = 0;
+  function drawLasers(bass,mid,treble,overall){
+    laserAngle += 0.006 + mid*0.0004;
+    const cx=W/2, cy=H/2;
+    const count = 5 + (beatFlash>0.4?3:0);
+    const maxLen = Math.hypot(W,H)*0.7;
+    ctx.save();
+    ctx.translate(cx,cy);
+    for(let i=0;i<count;i++){
+      const ang = laserAngle + (Math.PI*2/count)*i;
+      const len = maxLen * (0.5+0.5*Math.sin(performance.now()*0.0007+i));
+      const x2 = Math.cos(ang)*len, y2 = Math.sin(ang)*len;
+      const hue = (hueBase + i*(360/count))%360;
+      const grad = ctx.createLinearGradient(0,0,x2,y2);
+      grad.addColorStop(0, `hsla(${hue},95%,65%,0.75)`);
+      grad.addColorStop(1, `hsla(${hue},95%,65%,0)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2 + treble*0.02 + beatFlash*3;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(x2,y2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // --- Maze: a single wandering wire trace that turns with the treble ---
+  let mazePath = [];
+  let mazeDir = 0; // 0=right,1=down,2=left,3=up
+  function drawMaze(bass,mid,treble,overall){
+    if(mazePath.length===0){
+      mazePath.push({ x: Math.random()*W, y: Math.random()*H, hue: hueBase });
+      mazeDir = Math.floor(Math.random()*4);
+    }
+    const step = 9;
+    const last = mazePath[mazePath.length-1];
+    if(treble > 130 || Math.random()<0.04){
+      mazeDir = (mazeDir + (Math.random()<0.5? 1:3)) % 4;
+    }
+    const dx = [1,0,-1,0][mazeDir], dy=[0,1,0,-1][mazeDir];
+    let nx = last.x + dx*step, ny = last.y + dy*step;
+    if(nx<0||nx>W||ny<0||ny>H){
+      mazeDir = Math.floor(Math.random()*4);
+      nx = Math.min(W,Math.max(0,nx)); ny = Math.min(H,Math.max(0,ny));
+    }
+    mazePath.push({ x:nx, y:ny, hue: hueBase });
+    if(mazePath.length > 500) mazePath.shift();
+    if(mazePath.length > 2 && Math.random()<0.0025) mazePath = [{x:Math.random()*W,y:Math.random()*H,hue:hueBase}];
+
+    ctx.beginPath();
+    for(let i=0;i<mazePath.length;i++){
+      const p = mazePath[i];
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    }
+    ctx.strokeStyle = `hsla(${hueBase%360},85%,60%,0.85)`;
+    ctx.lineWidth = 2.5 + beatFlash*3;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  // --- Glowsticks: orbiting points leaving long glowing trails ---
+  let glowSticks = null;
+  function ensureGlowsticks(){
+    if(glowSticks) return;
+    glowSticks = [];
+    for(let i=0;i<5;i++){
+      glowSticks.push({ radiusBase: 60+i*40, speed: 0.4+i*0.15*(i%2===0?1:-1), phase: Math.random()*Math.PI*2, hue: i*70 });
+    }
+  }
+  function drawGlowsticks(bass,mid,treble,overall){
+    ensureGlowsticks();
+    const cx=W/2, cy=H/2;
+    const t = performance.now()*0.001;
+    for(const g of glowSticks){
+      const r = g.radiusBase + bass*0.5 + beatFlash*30;
+      const ang = t*g.speed + g.phase;
+      const x = cx + Math.cos(ang)*r;
+      const y = cy + Math.sin(ang)*r*0.7;
+      const hue = (hueBase + g.hue)%360;
+      const glow = ctx.createRadialGradient(x,y,0,x,y,18+beatFlash*10);
+      glow.addColorStop(0, `hsla(${hue},95%,70%,0.9)`);
+      glow.addColorStop(1, `hsla(${hue},95%,70%,0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(x,y,18+beatFlash*10,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Horizon: synthwave grid floor with a pulsing sun ---
+  let horizonT = 0;
+  function drawHorizon(bass,mid,treble,overall){
+    horizonT += 0.02 + overall*0.0005;
+    const horizonY = H*0.55;
+    // sun
+    const sunR = 70 + bass*0.6 + beatFlash*25;
+    const sunGrad = ctx.createLinearGradient(0, horizonY-sunR, 0, horizonY);
+    const hue = hueBase%360;
+    sunGrad.addColorStop(0, `hsla(${hue},90%,65%,0.9)`);
+    sunGrad.addColorStop(1, `hsla(${(hue+40)%360},90%,55%,0.4)`);
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath(); ctx.arc(W/2, horizonY, sunR, Math.PI, Math.PI*2); ctx.fill();
+    // horizon line
+    ctx.strokeStyle = `hsla(${hue},90%,70%,0.7)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0,horizonY); ctx.lineTo(W,horizonY); ctx.stroke();
+    // perspective floor grid
+    const vanishX = W/2;
+    const cols = 14;
+    for(let i=0;i<=cols;i++){
+      const t = i/cols;
+      const xTop = vanishX + (t-0.5)*W*0.15;
+      const xBot = vanishX + (t-0.5)*W*2.2;
+      ctx.strokeStyle = `hsla(${(hue+10)%360},80%,55%,0.4)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xTop,horizonY); ctx.lineTo(xBot,H); ctx.stroke();
+    }
+    const rows = 8;
+    for(let j=0;j<rows;j++){
+      const tt = ((j/rows) + (horizonT*0.15)%1) % 1;
+      const y = horizonY + tt*tt*(H-horizonY);
+      ctx.strokeStyle = `hsla(${(hue+10)%360},80%,55%,${0.5*(1-tt)})`;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+  }
+
   function drawParticles(dt){
     ctx.save();
     for(let i=particles.length-1;i>=0;i--){
@@ -602,9 +1029,29 @@
   }
 
   // ---------- mode switching ----------
+  function pickNextMode(){
+    const chaos = parseFloat(document.getElementById('chaos').value); // 0..1
+    if(MODES.length > 1 && Math.random() < chaos){
+      let idx;
+      do{ idx = Math.floor(Math.random()*MODES.length); } while(idx===modeIndex);
+      return idx;
+    }
+    return (modeIndex+1)%MODES.length;
+  }
+
+  function startTransition(nextIdx){
+    if(morphEnabled && !transitioning){
+      transFrom = modeIndex; transTo = nextIdx;
+      transStart = performance.now(); transDuration = 1300;
+      transitioning = true;
+    } else if(!transitioning){
+      modeIndex = nextIdx;
+    }
+    showModeLabel(MODES[nextIdx]);
+  }
+
   function nextMode(){
-    modeIndex = (modeIndex+1)%MODES.length;
-    showModeLabel(MODES[modeIndex]);
+    startTransition((modeIndex+1)%MODES.length);
   }
   let modeLabelTimeout;
   function showModeLabel(name){
@@ -657,6 +1104,14 @@
   document.getElementById('autoBtn').addEventListener('click', (e)=>{
     autoCycle = !autoCycle;
     e.target.classList.toggle('active', autoCycle);
+  });
+  document.getElementById('morphBtn').addEventListener('click', (e)=>{
+    morphEnabled = !morphEnabled;
+    e.target.classList.toggle('active', morphEnabled);
+  });
+  document.getElementById('settingsBtn').addEventListener('click', (e)=>{
+    document.getElementById('settingsPanel').classList.toggle('open');
+    e.target.classList.toggle('active');
   });
   function isFullscreen(){
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
