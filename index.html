@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>BEATSCOPE — audio reactive visualizer</title>
 <style>
   :root{
@@ -46,6 +49,18 @@
     letter-spacing:0.22em;
     text-transform:uppercase;
     margin:10px 0 40px;
+  }
+  .versionBadge{
+    position:absolute;
+    top:max(14px, env(safe-area-inset-top));
+    right:max(14px, env(safe-area-inset-right));
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--accent);
+    background:var(--hud-bg);
+    border:1px solid var(--hud-border);
+    padding:5px 9px;
+    border-radius:2px;
   }
 
   .srcRow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; max-width:480px;}
@@ -135,6 +150,7 @@
 <div id="hud">
   <div class="hudTop">
     <div class="badge" id="srcBadge">MIC</div>
+    <div class="badge" id="verBadgeHud">v?.?</div>
     <div class="badge" id="bpmBadge">-- <span style="color:var(--hud-fg-dim)">bpm</span></div>
   </div>
   <div class="hudBottom">
@@ -153,6 +169,7 @@
 <div id="startScreen">
   <h1 class="wordmark">BEAT<span>SCOPE</span></h1>
   <p class="tagline">audio reactive visuals · works on phone & car browsers</p>
+  <div class="versionBadge" id="versionBadge">v?.?</div>
   <div class="srcRow">
     <button class="srcBtn" id="micBtn">Listen with mic<small>reacts to whatever's playing in the room / cabin</small></button>
     <button class="srcBtn" id="fileBtn">Play an audio file<small>choose a track from this device</small></button>
@@ -164,6 +181,8 @@
 <script>
 (function(){
   "use strict";
+
+  const APP_VERSION = "v1.2";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -182,14 +201,14 @@
   // ---------- audio ----------
   let audioCtx, analyser, sourceNode, audioEl;
   let freqData, timeData;
-  const FFT_SIZE = 1024;
+  const FFT_SIZE = 512;
 
   function ensureAudioCtx(){
     if(!audioCtx){
-      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)({ latencyHint: 'interactive' });
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = FFT_SIZE;
-      analyser.smoothingTimeConstant = 0.75;
+      analyser.smoothingTimeConstant = 0.35; // lower = snappier reaction to the beat
       freqData = new Uint8Array(analyser.frequencyBinCount);
       timeData = new Uint8Array(analyser.fftSize);
     }
@@ -236,7 +255,7 @@
 
   // ---------- beat detection ----------
   const bassHistory = [];
-  const HIST_LEN = 43; // ~ last second at 60fps-ish sampling of energy
+  const HIST_LEN = 28; // shorter window = adapts to the beat faster
   let lastBeatTime = 0;
   let beatFlash = 0; // 0..1 decays
   let beatIntervals = [];
@@ -249,7 +268,7 @@
     const variance = bassHistory.reduce((a,b)=>a+(b-avg)*(b-avg),0)/bassHistory.length;
     const sensitivity = parseFloat(document.getElementById('sens').value);
     const threshold = avg * (1.0 + 0.35*sensitivity) + variance*0.02;
-    const minGap = 220; // ms cooldown to avoid double triggers
+    const minGap = 140; // ms cooldown to avoid double triggers
     if(bassEnergy > threshold && bassEnergy > 18 && (now - lastBeatTime) > minGap){
       const interval = now - lastBeatTime;
       if(lastBeatTime > 0 && interval < 2000 && interval > 220){
@@ -269,7 +288,7 @@
   let hueBase = 200;
   let rotation = 0;
   let particles = [];
-  const MODES = ['kaleido','plasma','starfield','bars'];
+  const MODES = ['kaleido','plasma','starfield','bars','vortex','fractal','warpgrid'];
   let modeIndex = 0;
   let autoCycle = false;
   let autoCycleBeats = 0;
@@ -337,6 +356,9 @@
     else if(mode==='plasma') drawPlasma(bass, mid, treble, overall);
     else if(mode==='starfield') drawStarfield(bass, mid, treble, overall);
     else if(mode==='bars') drawBars(bass, mid, treble, overall);
+    else if(mode==='vortex') drawVortex(bass, mid, treble, overall);
+    else if(mode==='fractal') drawFractal(bass, mid, treble, overall);
+    else if(mode==='warpgrid') drawWarpGrid(bass, mid, treble, overall);
 
     drawParticles(dt);
 
@@ -458,6 +480,112 @@
     ctx.stroke();
   }
 
+  // --- Vortex Tunnel: rings rushing toward viewer, MilkDrop "digitunnel" style ---
+  let vortexRings = [];
+  function drawVortex(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const maxR = Math.hypot(W,H)/2 * 1.05;
+    const speed = 2.2 + overall*0.05 + beatFlash*10;
+    // spawn a new ring periodically, faster spawn on stronger bass
+    if(Math.random() < 0.35 + bass*0.004){
+      vortexRings.push({ r: 4, hue: hueBase + Math.random()*40-20, sides: 5 + Math.floor(Math.random()*4) });
+    }
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rotation*1.4);
+    for(let i=vortexRings.length-1;i>=0;i--){
+      const ring = vortexRings[i];
+      ring.r += speed * (1 + ring.r/maxR*2.2);
+      if(ring.r > maxR){ vortexRings.splice(i,1); continue; }
+      const alpha = 1 - ring.r/maxR;
+      ctx.beginPath();
+      const sides = ring.sides;
+      for(let s=0;s<=sides;s++){
+        const ang = (Math.PI*2/sides)*s;
+        const wob = Math.sin(ang*3 + ring.r*0.02)*ring.r*0.06*(mid/255);
+        const rr = ring.r + wob;
+        const x = Math.cos(ang)*rr, y = Math.sin(ang)*rr;
+        if(s===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle = `hsla(${ring.hue%360},90%,60%,${alpha*0.8})`;
+      ctx.lineWidth = 2 + alpha*4 + beatFlash*4;
+      ctx.stroke();
+    }
+    ctx.restore();
+    if(vortexRings.length > 120) vortexRings.splice(0, vortexRings.length-120);
+  }
+
+  // --- Fractal Bloom: recursive branching bloom, MilkDrop "fractal/tree branch" style ---
+  function drawFractal(bass,mid,treble,overall){
+    const cx=W/2, cy=H*0.62;
+    const baseLen = Math.min(W,H)*0.16 + bass*0.6 + beatFlash*30;
+    const maxDepth = 4 + Math.floor(treble/70);
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(Math.sin(rotation*0.6)*0.2);
+    branch(baseLen, -Math.PI/2, maxDepth, hueBase);
+    ctx.restore();
+
+    function branch(len, ang, depth, hue){
+      if(depth<=0 || len<3) return;
+      const x2 = Math.cos(ang)*len, y2 = Math.sin(ang)*len;
+      ctx.beginPath();
+      ctx.moveTo(0,0); ctx.lineTo(x2,y2);
+      ctx.strokeStyle = `hsla(${hue%360},85%,${55+beatFlash*20}%,${0.25+0.55*(depth/maxDepth)})`;
+      ctx.lineWidth = Math.max(0.6, depth*0.9);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(x2,y2);
+      const spread = 0.45 + (mid/255)*0.5 + beatFlash*0.15;
+      branch(len*0.72, ang - spread, depth-1, hue+18);
+      branch(len*0.72, ang + spread, depth-1, hue-18);
+      ctx.restore();
+    }
+  }
+
+  // --- Warp Grid: perspective grid warped by sine fields, MilkDrop "grid/lattice" style ---
+  let warpT = 0;
+  function drawWarpGrid(bass,mid,treble,overall){
+    warpT += 0.02 + treble*0.0004;
+    const cols = 22, rows = 14;
+    const cx = W/2, cy = H*0.42;
+    const spacingX = W/cols, spacingY = H/rows;
+    ctx.save();
+    for(let ry=0; ry<=rows; ry++){
+      ctx.beginPath();
+      for(let rx=0; rx<=cols; rx++){
+        const px = rx*spacingX, py = ry*spacingY;
+        const dx = px-cx, dy = py-cy;
+        const dist = Math.hypot(dx,dy);
+        const warp = Math.sin(dist*0.02 - warpT*3) * (14 + bass*0.5 + beatFlash*40);
+        const nx = px + (dx/(dist||1))*warp;
+        const ny = py + (dy/(dist||1))*warp;
+        if(rx===0) ctx.moveTo(nx,ny); else ctx.lineTo(nx,ny);
+      }
+      const hue = (hueBase + ry*10)%360;
+      ctx.strokeStyle = `hsla(${hue},80%,55%,0.35)`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    for(let rx=0; rx<=cols; rx++){
+      ctx.beginPath();
+      for(let ry=0; ry<=rows; ry++){
+        const px = rx*spacingX, py = ry*spacingY;
+        const dx = px-cx, dy = py-cy;
+        const dist = Math.hypot(dx,dy);
+        const warp = Math.sin(dist*0.02 - warpT*3) * (14 + bass*0.5 + beatFlash*40);
+        const nx = px + (dx/(dist||1))*warp;
+        const ny = py + (dy/(dist||1))*warp;
+        if(ry===0) ctx.moveTo(nx,ny); else ctx.lineTo(nx,ny);
+      }
+      const hue = (hueBase + rx*6)%360;
+      ctx.strokeStyle = `hsla(${hue},80%,55%,0.3)`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawParticles(dt){
     ctx.save();
     for(let i=particles.length-1;i>=0;i--){
@@ -485,6 +613,19 @@
     el.classList.add('show');
     clearTimeout(modeLabelTimeout);
     modeLabelTimeout = setTimeout(()=>el.classList.remove('show'), 1100);
+  }
+  function toast(msg, ms){
+    const el = document.getElementById('modeLabel');
+    el.textContent = msg;
+    el.style.fontSize = '12px';
+    el.style.letterSpacing = '0.05em';
+    el.style.maxWidth = '80vw';
+    el.classList.add('show');
+    clearTimeout(modeLabelTimeout);
+    modeLabelTimeout = setTimeout(()=>{
+      el.classList.remove('show');
+      el.style.fontSize = ''; el.style.letterSpacing=''; el.style.maxWidth='';
+    }, ms||3200);
   }
 
   // ---------- HUD auto-hide ----------
@@ -517,13 +658,38 @@
     autoCycle = !autoCycle;
     e.target.classList.toggle('active', autoCycle);
   });
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+  function requestFS(el){
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.msRequestFullscreen;
+    if(!fn) return Promise.reject(new Error('unsupported'));
+    return fn.call(el);
+  }
+  function exitFS(){
+    const fn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if(!fn) return Promise.reject(new Error('unsupported'));
+    return fn.call(document);
+  }
   document.getElementById('fsBtn').addEventListener('click', ()=>{
-    if(!document.fullscreenElement){
-      document.documentElement.requestFullscreen().catch(()=>{});
+    if(!isFullscreen()){
+      requestFS(document.documentElement).catch(()=>{
+        // Fullscreen API isn't supported here (common on iPhone Safari and
+        // Tesla's in-car browser). Best available fallback: nudge the page
+        // to scroll past the address bar, and dim the HUD so the canvas
+        // reads as fullscreen even without the real API.
+        window.scrollTo(0,1);
+        document.getElementById('hud').classList.add('dim');
+        toast('Fullscreen isn\'t supported here — add to Home Screen for a true fullscreen app');
+      });
     } else {
-      document.exitFullscreen().catch(()=>{});
+      exitFS().catch(()=>{});
     }
   });
+
+  document.getElementById('versionBadge').textContent = APP_VERSION;
+  document.getElementById('verBadgeHud').textContent = APP_VERSION;
+  document.title = 'BEATSCOPE ' + APP_VERSION;
 
   window.addEventListener('pointerdown', wakeHud);
   window.addEventListener('pointermove', wakeHud);
