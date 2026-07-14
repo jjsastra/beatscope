@@ -142,7 +142,38 @@
   .settingRow label{font-size:9px; color:var(--hud-fg-dim); letter-spacing:0.06em; text-transform:uppercase;}
   .settingRow input[type=range]{width:100%; accent-color:var(--accent);}
 
-  #modeLabel{
+  #modeBadge{
+    position:fixed;
+    top: max(14px, env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index:25;
+    pointer-events:none;
+    font-size:12px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    background:var(--hud-bg);
+    border:1px solid var(--hud-border);
+    padding:6px 14px;
+    border-radius:2px;
+    backdrop-filter: blur(6px);
+  }
+  body.is-fullscreen #modeBadge{ display:none; }
+
+  #modeCheckboxes{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:4px 10px;
+    max-height:180px;
+    overflow-y:auto;
+    padding-right:4px;
+  }
+  .modeCheckRow{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; color:var(--hud-fg);
+  }
+  .modeCheckRow input{ accent-color:var(--accent); width:14px; height:14px; }
     position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
     z-index:15; pointer-events:none;
     font-size:13px; letter-spacing:0.3em; text-transform:uppercase;
@@ -163,6 +194,7 @@
 <canvas id="scene"></canvas>
 
 <div id="modeLabel"></div>
+<div id="modeBadge">MODE</div>
 
 <div id="hud">
   <div class="hudTop">
@@ -183,6 +215,10 @@
       <div class="settingRow">
         <label>RANDOMNESS (chance of a wild jump vs. next in line)</label>
         <input type="range" id="chaos" min="0" max="1" step="0.05" value="0.25">
+      </div>
+      <div class="settingRow">
+        <label>VISUALIZATIONS (unchecked = hidden from auto & manual)</label>
+        <div id="modeCheckboxes"></div>
       </div>
     </div>
     <div class="controls">
@@ -211,11 +247,11 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v1.3";
+  const APP_VERSION = "v1.5";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
-  const ctx = canvas.getContext('2d', { alpha:false });
+  let ctx = canvas.getContext('2d', { alpha:false });
   let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1, 2);
 
   function resize(){
@@ -318,7 +354,25 @@
   let rotation = 0;
   let particles = [];
   const MODES = ['kaleido','plasma','starfield','bars','vortex','fractal','warpgrid',
-                 'aurora','nexus','spinner','julia','nested','liquid','lasers','maze','glowsticks','horizon'];
+                 'aurora','nexus','spinner','julia','nested','liquid','lasers','maze','glowsticks','horizon',
+                 'hyperspace','wormhole','nebula','asteroids','fractaltunnel','gridtunnel','galaxy','comets','fractalzoom','deepfield','solarsystem',
+                 'flowfield','flowerlife','bioluminescence','jellyfish','coral','fireflies','auroraveil','inkbloom','silkripple','crystalcave',
+                 'mandala','northernreflection','lightningweb','chladni','blackhole','supernova','dnahelix','dunes','prism','lotus'];
+
+  const MODE_LABELS = {
+    kaleido:'Kaleidoscope', plasma:'Plasma Waves', starfield:'Starfield', bars:'Spectrum Bars',
+    vortex:'Vortex Tunnel', fractal:'Fractal Bloom', warpgrid:'Warp Grid',
+    aurora:'Aurora', nexus:'Nexus', spinner:'Spinner', julia:'Julia Fractal', nested:'Nested Polygons',
+    liquid:'Liquid', lasers:'Lasers', maze:'Wire Maze', glowsticks:'Glowsticks', horizon:'Horizon',
+    hyperspace:'Hyperspace Jump', wormhole:'Wormhole', nebula:'Nebula Drift', asteroids:'Asteroid Field',
+    fractaltunnel:'Fractal Tunnel', gridtunnel:'Grid Tunnel', galaxy:'Galaxy Spiral', comets:'Comet Streaks',
+    fractalzoom:'Fractal Zoom', deepfield:'Deep Field', solarsystem:'Solar System Flyby',
+    flowfield:'Flow Field', flowerlife:'Flower of Life', bioluminescence:'Bioluminescence', jellyfish:'Jellyfish Drift',
+    coral:'Coral Bloom', fireflies:'Firefly Meadow', auroraveil:'Aurora Veil', inkbloom:'Ink Bloom',
+    silkripple:'Silk Ripple', crystalcave:'Crystal Cave', mandala:'Mandala Bloom', northernreflection:'Northern Reflection',
+    lightningweb:'Lightning Web', chladni:'Chladni Sand', blackhole:'Black Hole', supernova:'Supernova',
+    dnahelix:'DNA Helix', dunes:'Desert Dunes', prism:'Prism Rays', lotus:'Lotus Bloom'
+  };
 
   function modeTrailAlpha(modeName){
     // how quickly the previous frame fades — controls trail length per mode
@@ -327,6 +381,41 @@
       case 'vortex':
       case 'julia':
         return 0.08;
+      case 'hyperspace':
+      case 'wormhole':
+      case 'comets':
+      case 'supernova':
+        return 0.06;
+      case 'deepfield':
+      case 'fireflies':
+      case 'bioluminescence':
+      case 'chladni':
+        return 0.05;
+      case 'inkbloom':
+        return 0.04;
+      case 'flowfield':
+        return 0.045;
+      case 'nebula':
+      case 'fractalzoom':
+      case 'solarsystem':
+      case 'jellyfish':
+      case 'northernreflection':
+      case 'prism':
+        return 0.10;
+      case 'galaxy':
+      case 'silkripple':
+      case 'mandala':
+      case 'dnahelix':
+      case 'blackhole':
+        return 0.12;
+      case 'fractaltunnel':
+      case 'gridtunnel':
+      case 'coral':
+      case 'crystalcave':
+      case 'flowerlife':
+        return 0.14;
+      case 'lightningweb':
+        return 0.22;
       case 'bars':
       case 'warpgrid':
       case 'maze':
@@ -341,7 +430,20 @@
   let autoCycleBeats = 0;
   let morphEnabled = false;
   let transitioning = false;
-  let transFrom = 0, transTo = 0, transStart = 0, transDuration = 1300;
+  let transFrom = 0, transTo = 0, transStart = 0, transDuration = 1500;
+  let transFromCanvas = null, transFromCtx = null, transToCanvas = null, transToCtx = null;
+  function ensureTransCanvases(){
+    if(!transFromCanvas){
+      transFromCanvas = document.createElement('canvas');
+      transFromCtx = transFromCanvas.getContext('2d');
+      transToCanvas = document.createElement('canvas');
+      transToCtx = transToCanvas.getContext('2d');
+    }
+    transFromCanvas.width = W; transFromCanvas.height = H;
+    transToCanvas.width = W; transToCanvas.height = H;
+    transFromCtx.fillStyle = '#000'; transFromCtx.fillRect(0,0,W,H);
+    transToCtx.fillStyle = '#000'; transToCtx.fillRect(0,0,W,H);
+  }
 
   function spawnBurst(cx, cy, count, energy){
     for(let i=0;i<count;i++){
@@ -411,8 +513,45 @@
 
     if(transitioning){
       const t = Math.min(1, (now-transStart)/transDuration);
-      ctx.save(); ctx.globalAlpha = 1-t; renderMode(MODES[transFrom], bass,mid,treble,overall); ctx.restore();
-      ctx.save(); ctx.globalAlpha = t; renderMode(MODES[transTo], bass,mid,treble,overall); ctx.restore();
+      const ease = t*t*(3-2*t); // smoothstep — organic acceleration/deceleration through the morph
+
+      // render each mode into its OWN offscreen buffer (each keeps its own trail state)
+      const savedCtx = ctx;
+      ctx = transFromCtx;
+      ctx.fillStyle = `rgba(0,0,0,${modeTrailAlpha(MODES[transFrom])})`;
+      ctx.fillRect(0,0,W,H);
+      renderMode(MODES[transFrom], bass,mid,treble,overall);
+
+      ctx = transToCtx;
+      ctx.fillStyle = `rgba(0,0,0,${modeTrailAlpha(MODES[transTo])})`;
+      ctx.fillRect(0,0,W,H);
+      renderMode(MODES[transTo], bass,mid,treble,overall);
+      ctx = savedCtx;
+
+      // composite: outgoing visual spins+expands away, incoming visual spins+grows in from small —
+      // this reads as one shape transforming into the next, not a flat dissolve
+      const cx=W/2, cy=H/2;
+
+      ctx.save();
+      ctx.globalAlpha = 1-ease;
+      ctx.translate(cx,cy);
+      ctx.rotate(ease*1.1);
+      const outScale = 1+ease*0.9;
+      ctx.scale(outScale, outScale);
+      ctx.translate(-cx,-cy);
+      ctx.drawImage(transFromCanvas,0,0,W,H);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = ease;
+      ctx.translate(cx,cy);
+      ctx.rotate(-(1-ease)*1.1);
+      const inScale = 0.25+ease*0.75;
+      ctx.scale(inScale, inScale);
+      ctx.translate(-cx,-cy);
+      ctx.drawImage(transToCanvas,0,0,W,H);
+      ctx.restore();
+
       if(t>=1){ transitioning=false; modeIndex=transTo; }
     } else {
       renderMode(MODES[modeIndex], bass,mid,treble,overall);
@@ -444,6 +583,37 @@
     else if(mode==='maze') drawMaze(bass, mid, treble, overall);
     else if(mode==='glowsticks') drawGlowsticks(bass, mid, treble, overall);
     else if(mode==='horizon') drawHorizon(bass, mid, treble, overall);
+    else if(mode==='hyperspace') drawHyperspace(bass, mid, treble, overall);
+    else if(mode==='wormhole') drawWormhole(bass, mid, treble, overall);
+    else if(mode==='nebula') drawNebula(bass, mid, treble, overall);
+    else if(mode==='asteroids') drawAsteroids(bass, mid, treble, overall);
+    else if(mode==='fractaltunnel') drawFractalTunnel(bass, mid, treble, overall);
+    else if(mode==='gridtunnel') drawGridTunnel(bass, mid, treble, overall);
+    else if(mode==='galaxy') drawGalaxy(bass, mid, treble, overall);
+    else if(mode==='comets') drawComets(bass, mid, treble, overall);
+    else if(mode==='fractalzoom') drawFractalZoom(bass, mid, treble, overall);
+    else if(mode==='deepfield') drawDeepField(bass, mid, treble, overall);
+    else if(mode==='solarsystem') drawSolarSystem(bass, mid, treble, overall);
+    else if(mode==='flowfield') drawFlowField(bass, mid, treble, overall);
+    else if(mode==='flowerlife') drawFlowerOfLife(bass, mid, treble, overall);
+    else if(mode==='bioluminescence') drawBioluminescence(bass, mid, treble, overall);
+    else if(mode==='jellyfish') drawJellyfish(bass, mid, treble, overall);
+    else if(mode==='coral') drawCoral(bass, mid, treble, overall);
+    else if(mode==='fireflies') drawFireflies(bass, mid, treble, overall);
+    else if(mode==='auroraveil') drawAuroraVeil(bass, mid, treble, overall);
+    else if(mode==='inkbloom') drawInkBloom(bass, mid, treble, overall);
+    else if(mode==='silkripple') drawSilkRipple(bass, mid, treble, overall);
+    else if(mode==='crystalcave') drawCrystalCave(bass, mid, treble, overall);
+    else if(mode==='mandala') drawMandala(bass, mid, treble, overall);
+    else if(mode==='northernreflection') drawNorthernReflection(bass, mid, treble, overall);
+    else if(mode==='lightningweb') drawLightningWeb(bass, mid, treble, overall);
+    else if(mode==='chladni') drawChladni(bass, mid, treble, overall);
+    else if(mode==='blackhole') drawBlackHole(bass, mid, treble, overall);
+    else if(mode==='supernova') drawSupernova(bass, mid, treble, overall);
+    else if(mode==='dnahelix') drawDnaHelix(bass, mid, treble, overall);
+    else if(mode==='dunes') drawDunes(bass, mid, treble, overall);
+    else if(mode==='prism') drawPrism(bass, mid, treble, overall);
+    else if(mode==='lotus') drawLotus(bass, mid, treble, overall);
   }
 
   function drawKaleido(bass,mid,treble,overall){
@@ -1013,6 +1183,917 @@
     }
   }
 
+  // --- shared helpers for "flying through space" style depth-field particles ---
+  function makeDepthField(n, maxZ){
+    const arr=[];
+    for(let i=0;i<n;i++){
+      arr.push({ x:(Math.random()*2-1), y:(Math.random()*2-1), z: Math.random()*maxZ });
+    }
+    return arr;
+  }
+  function stepDepthField(arr, speed, maxZ){
+    for(const p of arr){
+      p.z -= speed;
+      if(p.z <= 1){ p.x=(Math.random()*2-1); p.y=(Math.random()*2-1); p.z=maxZ; }
+    }
+  }
+
+  // --- Hyperspace: streaking star lines rushing past, classic "jump to lightspeed" ---
+  let hyperField = null;
+  function drawHyperspace(bass,mid,treble,overall){
+    if(!hyperField) hyperField = makeDepthField(220, 600);
+    const speed = 4 + overall*0.15 + beatFlash*20;
+    const cx=W/2, cy=H/2, focal=260, spread=Math.max(W,H)*0.6;
+    for(const p of hyperField){
+      const prevZ = p.z;
+      p.z -= speed;
+      if(p.z <= 1){ p.x=(Math.random()*2-1); p.y=(Math.random()*2-1); p.z=600; continue; }
+      const scaleNow = focal/p.z, scalePrev = focal/prevZ;
+      const x = cx + p.x*spread*scaleNow, y = cy + p.y*spread*scaleNow;
+      const px = cx + p.x*spread*scalePrev, py = cy + p.y*spread*scalePrev;
+      const alpha = Math.min(1, (600-p.z)/600*1.3);
+      ctx.strokeStyle = `hsla(${hueBase%360},80%,78%,${alpha})`;
+      ctx.lineWidth = Math.max(0.6, scaleNow*1.4);
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x,y); ctx.stroke();
+    }
+  }
+
+  // --- Wormhole: twisting spiral tunnel with per-ring rotation offset ---
+  let wormRings = [];
+  function drawWormhole(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const maxR = Math.hypot(W,H)/2*1.1;
+    const speed = 3 + overall*0.06 + beatFlash*12;
+    if(Math.random() < 0.5+bass*0.003) wormRings.push({ r:4, twist:(Math.random()-0.5)*2, hue:hueBase });
+    for(let i=wormRings.length-1;i>=0;i--){
+      const rg = wormRings[i];
+      rg.r += speed*(1+rg.r/maxR*2);
+      if(rg.r > maxR){ wormRings.splice(i,1); continue; }
+      const alpha = 1-rg.r/maxR;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(rotation*2 + rg.twist*(1-alpha)*4);
+      ctx.beginPath();
+      const segs=40;
+      for(let s=0;s<=segs;s++){
+        const ang=(Math.PI*2/segs)*s;
+        const wob = Math.sin(ang*5+rg.r*0.05)*rg.r*0.08;
+        const rr = rg.r+wob;
+        const x = Math.cos(ang)*rr, y = Math.sin(ang)*rr*0.6;
+        if(s===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `hsla(${rg.hue%360},90%,60%,${alpha*0.8})`;
+      ctx.lineWidth = 2+alpha*3;
+      ctx.stroke();
+      ctx.restore();
+    }
+    if(wormRings.length>150) wormRings.splice(0, wormRings.length-150);
+  }
+
+  // --- Nebula: soft drifting clouds that swell as they pass, layered additive glow ---
+  let nebulaField = null;
+  function drawNebula(bass,mid,treble,overall){
+    if(!nebulaField) nebulaField = makeDepthField(14, 500).map(p=>({...p, hue:Math.random()*360}));
+    const speed = 1.2+overall*0.03+beatFlash*5;
+    const cx=W/2, cy=H/2;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for(const p of nebulaField){
+      p.z -= speed;
+      if(p.z<=20){ p.x=(Math.random()*2-1); p.y=(Math.random()*2-1); p.z=500; p.hue=Math.random()*360; }
+      const scale = 260/p.z;
+      const x = cx + p.x*W*0.5*scale, y = cy + p.y*H*0.5*scale;
+      const r = 90*scale;
+      const alpha = Math.min(0.35, (500-p.z)/500*0.4);
+      const grad = ctx.createRadialGradient(x,y,0,x,y,r);
+      const hue = (hueBase+p.hue)%360;
+      grad.addColorStop(0, `hsla(${hue},80%,60%,${alpha})`);
+      grad.addColorStop(1, `hsla(${hue},80%,60%,0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Asteroid Field: rotating rocky polygons flying past at varying depth ---
+  let astField = null;
+  function drawAsteroids(bass,mid,treble,overall){
+    if(!astField) astField = makeDepthField(60,500).map(p=>({...p, rot:Math.random()*Math.PI*2, spin:(Math.random()-0.5)*0.1, sides:5+Math.floor(Math.random()*3)}));
+    const speed = 3+overall*0.08+beatFlash*15;
+    const cx=W/2, cy=H/2;
+    for(const a of astField){
+      a.z -= speed; a.rot += a.spin;
+      if(a.z<=15){ a.x=(Math.random()*2-1); a.y=(Math.random()*2-1); a.z=500; }
+      const scale = 260/a.z;
+      const x = cx + a.x*W*0.5*scale, y = cy + a.y*H*0.5*scale;
+      const size = 10*scale;
+      if(size<0.5) continue;
+      ctx.save();
+      ctx.translate(x,y); ctx.rotate(a.rot);
+      ctx.beginPath();
+      for(let s=0;s<=a.sides;s++){
+        const ang=(Math.PI*2/a.sides)*s;
+        const rr = size*(0.8+0.2*Math.sin(s*3));
+        const px = Math.cos(ang)*rr, py = Math.sin(ang)*rr;
+        if(s===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.closePath();
+      const alpha = Math.min(1,(500-a.z)/500*1.2);
+      ctx.fillStyle = `hsla(${(hueBase+20)%360},30%,45%,${alpha})`;
+      ctx.strokeStyle = `hsla(${hueBase%360},70%,65%,${alpha})`;
+      ctx.lineWidth = 1;
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // --- Fractal Tunnel: recursive receding rotating squares, infinite corridor feel ---
+  function drawFractalTunnel(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const depth = 14;
+    const speedOffset = (performance.now()*0.0008 + bass*0.002) % 1;
+    for(let i=depth;i>=0;i--){
+      const t = (i+speedOffset)/depth;
+      const scale = Math.pow(t, 2.2);
+      const size = scale*Math.max(W,H)*1.3;
+      if(size<4) continue;
+      const rot = rotation*1.2 + i*0.15;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(rot);
+      const hue = (hueBase + i*18)%360;
+      ctx.strokeStyle = `hsla(${hue},85%,60%,${0.15+0.5*(1-t)})`;
+      ctx.lineWidth = 1.5+beatFlash*3;
+      ctx.strokeRect(-size/2,-size/2,size,size);
+      ctx.restore();
+    }
+  }
+
+  // --- Grid Tunnel: Tron-style wireframe tunnel receding to a vanishing point ---
+  function drawGridTunnel(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const rings=16, spokes=16;
+    const speed = (performance.now()*0.0012 + bass*0.003)%1;
+    for(let s=0;s<spokes;s++){
+      const ang = (Math.PI*2/spokes)*s + rotation*0.5;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+Math.cos(ang)*Math.hypot(W,H), cy+Math.sin(ang)*Math.hypot(W,H));
+      ctx.strokeStyle = `hsla(${hueBase%360},80%,55%,0.18)`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    for(let i=0;i<rings;i++){
+      const t = ((i/rings)+speed)%1;
+      const r = Math.pow(t,2)*Math.hypot(W,H)*0.75;
+      ctx.beginPath();
+      ctx.arc(cx,cy,r,0,Math.PI*2);
+      const hue = (hueBase+i*10)%360;
+      ctx.strokeStyle = `hsla(${hue},85%,60%,${0.5*(1-t)})`;
+      ctx.lineWidth = 2+beatFlash*3;
+      ctx.stroke();
+    }
+  }
+
+  // --- Galaxy: rotating spiral arms of stars around a glowing core ---
+  let galaxyStars = null;
+  function drawGalaxy(bass,mid,treble,overall){
+    if(!galaxyStars){
+      galaxyStars = [];
+      for(let i=0;i<260;i++){
+        galaxyStars.push({ t: Math.random(), arm: i%3, size: 1+Math.random()*2, hue: Math.random()*40 });
+      }
+    }
+    const cx=W/2, cy=H/2;
+    const maxR = Math.min(W,H)*0.46;
+    const spin = rotation*1.5;
+    for(const s of galaxyStars){
+      const armAngle = (Math.PI*2/3)*s.arm;
+      const ang = armAngle + s.t*6 + spin;
+      const r = s.t*maxR;
+      const x = cx+Math.cos(ang)*r, y = cy+Math.sin(ang)*r*0.55;
+      const hue = (hueBase+s.hue)%360;
+      ctx.fillStyle = `hsla(${hue},85%,${65+beatFlash*20}%,0.85)`;
+      ctx.beginPath(); ctx.arc(x,y,s.size+beatFlash*1.5,0,Math.PI*2); ctx.fill();
+    }
+    const glowR = 80+bass*0.5;
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
+    grad.addColorStop(0, `hsla(${hueBase%360},90%,75%,0.5)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx,cy,glowR,0,Math.PI*2); ctx.fill();
+  }
+
+  // --- Comets: streaking glowing tails radiating outward, triggered by energy ---
+  let comets = [];
+  function drawComets(bass,mid,treble,overall){
+    if(Math.random() < 0.15+bass*0.002){
+      const ang = Math.random()*Math.PI*2;
+      comets.push({ x:W/2, y:H/2, ang, speed:4+Math.random()*6, life:1, hue: hueBase+Math.random()*60 });
+    }
+    for(let i=comets.length-1;i>=0;i--){
+      const c = comets[i];
+      const nx = c.x+Math.cos(c.ang)*c.speed, ny = c.y+Math.sin(c.ang)*c.speed;
+      ctx.strokeStyle = `hsla(${c.hue%360},90%,65%,${c.life*0.8})`;
+      ctx.lineWidth = 2+beatFlash*2;
+      ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(nx,ny); ctx.stroke();
+      c.x=nx; c.y=ny; c.speed*=1.02; c.life-=0.012;
+      if(c.life<=0 || c.x<-50||c.x>W+50||c.y<-50||c.y>H+50) comets.splice(i,1);
+    }
+    if(comets.length>200) comets.splice(0, comets.length-200);
+  }
+
+  // --- Fractal Zoom: continuously zooming nested polygons, infinite-zoom illusion ---
+  let fractalZoomT = 0;
+  function drawFractalZoom(bass,mid,treble,overall){
+    fractalZoomT += 0.01+overall*0.0003+beatFlash*0.05;
+    const cx=W/2, cy=H/2;
+    const rings = 10;
+    for(let i=0;i<rings;i++){
+      const t = ((i/rings)+fractalZoomT%1)%1;
+      const r = Math.pow(t,1.8)*Math.hypot(W,H)*0.6;
+      const hue = (hueBase+i*24)%360;
+      ctx.beginPath();
+      const sides=6;
+      for(let s=0;s<=sides;s++){
+        const ang = (Math.PI*2/sides)*s + i*0.4;
+        const x = cx+Math.cos(ang)*r, y = cy+Math.sin(ang)*r;
+        if(s===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `hsla(${hue},85%,60%,${0.6*(1-t)})`;
+      ctx.lineWidth = 2+beatFlash*3;
+      ctx.stroke();
+    }
+  }
+
+  // --- Deep Field: countless tiny distant points drifting very slowly, twinkling ---
+  let deepField = null;
+  function drawDeepField(bass,mid,treble,overall){
+    if(!deepField) deepField = makeDepthField(160, 800).map(p=>({...p, hue:Math.random()*360, tw:Math.random()*Math.PI*2}));
+    const speed = 0.6+overall*0.01+beatFlash*2;
+    const cx=W/2, cy=H/2;
+    for(const p of deepField){
+      p.z -= speed; p.tw += 0.05;
+      if(p.z<=10){ p.x=(Math.random()*2-1); p.y=(Math.random()*2-1); p.z=800; p.hue=Math.random()*360; }
+      const scale = 200/p.z;
+      const x = cx + p.x*W*0.5*scale, y = cy + p.y*H*0.5*scale;
+      const tw = 0.5+0.5*Math.sin(p.tw);
+      const alpha = Math.min(1,(800-p.z)/800)*tw;
+      const hue = (hueBase*0.3+p.hue)%360;
+      ctx.fillStyle = `hsla(${hue},70%,75%,${alpha})`;
+      ctx.beginPath(); ctx.arc(x,y, Math.max(0.5,scale*1.2),0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Solar System Flyby: fly past the Sun and all 8 planets in order, labeled ---
+  const PLANETS = [
+    { name:'Sun', color:'#FFD54A', glow:true, size:170 },
+    { name:'Mercury', color:'#A9A9A9', size:16 },
+    { name:'Venus', color:'#E8C27E', size:32 },
+    { name:'Earth', color:'#4E8FE0', size:34 },
+    { name:'Mars', color:'#C1583A', size:24 },
+    { name:'Jupiter', color:'#D9A066', size:95 },
+    { name:'Saturn', color:'#E4C98A', size:80, rings:true },
+    { name:'Uranus', color:'#7FD8D6', size:54 },
+    { name:'Neptune', color:'#3B5EDB', size:52 }
+  ];
+  let solarObjs = null, solarNextIdx = 0, solarStars = null, solarBelt = null, solarComets = [];
+  let solarCamT = 0;
+  function ensureSolar(){
+    if(solarObjs) return;
+    solarObjs = [];
+    solarStars = makeDepthField(160, 700);
+    solarBelt = makeDepthField(50, 700).map(p=>({...p, size: 1+Math.random()*2}));
+    const spacing = 700;
+    for(let i=0;i<5;i++){
+      solarObjs.push(makeSolarObj(PLANETS[i%PLANETS.length], 200+i*spacing));
+    }
+    solarNextIdx = 5%PLANETS.length;
+  }
+  function makeSolarObj(planet, z){
+    return {
+      planet, z,
+      x:(Math.random()*0.6-0.3), y:(Math.random()*0.5-0.25),
+      speedMul: 0.85+Math.random()*0.3,
+      ringTilt: 0.25+Math.random()*0.4,
+      moonAngle: Math.random()*Math.PI*2,
+      moonSpeed: 0.02+Math.random()*0.02
+    };
+  }
+  function drawSolarSystem(bass,mid,treble,overall){
+    ensureSolar();
+    solarCamT += 0.004 + overall*0.00006;
+    const cx = W/2 + Math.sin(solarCamT*0.7)*W*0.03;
+    const cy = H/2 + Math.cos(solarCamT*0.55)*H*0.025;
+    const speed = 3.2 + overall*0.06 + beatFlash*14;
+
+    // soft ambient nebula haze behind everything, slowly shifting hue — the "beautiful" backdrop
+    const hazeR = Math.hypot(W,H)*0.7;
+    const hazeGrad = ctx.createRadialGradient(cx,cy,0,cx,cy,hazeR);
+    hazeGrad.addColorStop(0, `hsla(${(hueBase+40)%360},60%,30%,0.05)`);
+    hazeGrad.addColorStop(0.6, `hsla(${(hueBase+200)%360},60%,20%,0.04)`);
+    hazeGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hazeGrad;
+    ctx.fillRect(0,0,W,H);
+
+    stepDepthField(solarStars, speed*0.5, 700);
+    for(const st of solarStars){
+      const scale = 220/st.z;
+      const x = cx+st.x*W*0.5*scale, y = cy+st.y*H*0.5*scale;
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8,(700-st.z)/700)})`;
+      ctx.fillRect(x,y,Math.max(0.5,scale),Math.max(0.5,scale));
+    }
+    // faint drifting asteroid haze for texture/depth, always present
+    stepDepthField(solarBelt, speed*0.35, 700);
+    for(const b of solarBelt){
+      const scale = 220/b.z;
+      const x = cx+b.x*W*0.5*scale, y = cy+b.y*H*0.5*scale;
+      ctx.fillStyle = `rgba(200,180,150,${Math.min(0.4,(700-b.z)/700*0.5)})`;
+      ctx.beginPath(); ctx.arc(x,y,b.size*scale*0.4,0,Math.PI*2); ctx.fill();
+    }
+
+    // occasional shooting comet streaking through for extra wonder
+    if(Math.random() < 0.006+bass*0.00006){
+      const ang = Math.random()*Math.PI*2;
+      solarComets.push({ x: cx+ (Math.random()*2-1)*W*0.3, y: cy+(Math.random()*2-1)*H*0.3, ang, speed:6+Math.random()*8, life:1, hue: hueBase+Math.random()*80 });
+    }
+    for(let i=solarComets.length-1;i>=0;i--){
+      const c = solarComets[i];
+      const nx = c.x+Math.cos(c.ang)*c.speed, ny = c.y+Math.sin(c.ang)*c.speed;
+      const grad = ctx.createLinearGradient(c.x,c.y,nx,ny);
+      grad.addColorStop(0, `hsla(${c.hue%360},90%,80%,0)`);
+      grad.addColorStop(1, `hsla(${c.hue%360},90%,80%,${c.life*0.9})`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(nx,ny); ctx.stroke();
+      c.x=nx; c.y=ny; c.life -= 0.015;
+      if(c.life<=0) solarComets.splice(i,1);
+    }
+    if(solarComets.length>40) solarComets.splice(0, solarComets.length-40);
+
+    for(let i=solarObjs.length-1;i>=0;i--){
+      const o = solarObjs[i];
+      o.z -= speed*o.speedMul;
+      o.moonAngle += o.moonSpeed;
+      if(o.z <= 40){
+        solarObjs.splice(i,1);
+        let maxZ = 0;
+        for(const s of solarObjs){ if(s.z>maxZ) maxZ=s.z; }
+        solarObjs.push(makeSolarObj(PLANETS[solarNextIdx], maxZ+700));
+        solarNextIdx = (solarNextIdx+1)%PLANETS.length;
+        continue;
+      }
+      const scale = 260/o.z;
+      const x = cx + o.x*W*0.6*scale;
+      const y = cy + o.y*H*0.6*scale;
+      const r = o.planet.size*scale*0.5;
+      if(r<0.5) continue;
+      const alpha = Math.min(1, (700-o.z)/700*1.3);
+      const grad = ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r);
+      grad.addColorStop(0, o.planet.color);
+      grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+      ctx.fillStyle = grad;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+      if(o.planet.name==='Earth' && r>4){
+        const moonR = r*0.27;
+        const moonDist = r*1.9;
+        const mx = x + Math.cos(o.moonAngle)*moonDist;
+        const my = y + Math.sin(o.moonAngle)*moonDist*0.5;
+        ctx.fillStyle = `rgba(210,210,210,${alpha*0.9})`;
+        ctx.beginPath(); ctx.arc(mx,my,Math.max(0.6,moonR),0,Math.PI*2); ctx.fill();
+      }
+      if(o.planet.rings && r>3){
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(o.ringTilt);
+        ctx.strokeStyle = `rgba(220,200,160,${alpha*0.7})`;
+        ctx.lineWidth = Math.max(1, r*0.12);
+        ctx.beginPath(); ctx.ellipse(0,0, r*1.9, r*0.5, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.restore();
+      }
+      if(o.planet.glow){
+        const glowR = r*1.6;
+        const gg = ctx.createRadialGradient(x,y,r*0.8,x,y,glowR);
+        gg.addColorStop(0, `hsla(48,100%,70%,${alpha*0.5})`);
+        gg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.arc(x,y,glowR,0,Math.PI*2); ctx.fill();
+      }
+      if(r>6){
+        ctx.font = `${Math.max(10,Math.min(16,r*0.22))}px "JetBrains Mono", monospace`;
+        ctx.fillStyle = `rgba(255,255,255,${alpha*0.85})`;
+        ctx.textAlign = 'center';
+        ctx.fillText(o.planet.name.toUpperCase(), x, y+r+16);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // cheap smooth pseudo-noise for organic flowing motion
+  function noise2(x,y,t){
+    return (Math.sin(x*1.3+t)+Math.sin(y*1.7-t*1.1)+Math.sin((x+y)*0.7+t*0.6))/3;
+  }
+
+  // --- Flow Field: particles drifting along an invisible current, like wind made visible ---
+  let flowParticles = null;
+  function drawFlowField(bass,mid,treble,overall){
+    if(!flowParticles){
+      flowParticles = [];
+      for(let i=0;i<170;i++) flowParticles.push({ x:Math.random()*W, y:Math.random()*H, hue:Math.random()*80 });
+    }
+    const t = performance.now()*0.00035;
+    for(const p of flowParticles){
+      const ang = noise2(p.x*0.006, p.y*0.006, t)*Math.PI*2 + rotation*0.3;
+      const speed = 1.1+overall*0.02+beatFlash*3;
+      const nx = p.x+Math.cos(ang)*speed, ny = p.y+Math.sin(ang)*speed;
+      ctx.strokeStyle = `hsla(${(hueBase+p.hue)%360},80%,68%,0.45)`;
+      ctx.lineWidth = 1.1+treble*0.01;
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(nx,ny); ctx.stroke();
+      p.x=nx; p.y=ny;
+      if(p.x<0||p.x>W||p.y<0||p.y>H){ p.x=Math.random()*W; p.y=Math.random()*H; }
+    }
+  }
+
+  // --- Flower of Life: sacred-geometry overlapping circles, slow rotation ---
+  function drawFlowerOfLife(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const r = Math.min(W,H)*0.085 + bass*0.12;
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rotation*0.4);
+    ringCircle(0,0,r);
+    for(let ring=1; ring<=3; ring++){
+      const count = ring*6;
+      for(let i=0;i<count;i++){
+        const ang = (Math.PI*2/count)*i;
+        const dist = r*ring;
+        ringCircle(Math.cos(ang)*dist, Math.sin(ang)*dist, r);
+      }
+    }
+    ctx.restore();
+    function ringCircle(x,y,rr){
+      ctx.beginPath(); ctx.arc(x,y,rr,0,Math.PI*2);
+      const hue = (hueBase + Math.atan2(y,x)*40)%360;
+      ctx.strokeStyle = `hsla(${hue},80%,68%,${0.32+beatFlash*0.3})`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+  }
+
+  // --- Bioluminescence: glowing plankton-like particles drifting up through dark water ---
+  let bioParticles = null;
+  function drawBioluminescence(bass,mid,treble,overall){
+    if(!bioParticles){
+      bioParticles = [];
+      for(let i=0;i<90;i++) bioParticles.push({ x:Math.random()*W, y:Math.random()*H, vy:-(0.2+Math.random()*0.4), vx:(Math.random()-0.5)*0.3, phase:Math.random()*Math.PI*2, hue:170+Math.random()*60 });
+    }
+    for(const p of bioParticles){
+      p.phase += 0.05;
+      p.y += p.vy - overall*0.01;
+      p.x += p.vx + Math.sin(p.phase)*0.3;
+      if(p.y<-10){ p.y=H+10; p.x=Math.random()*W; }
+      const glow = 0.5+0.5*Math.sin(p.phase*1.3);
+      const r = 3+glow*3+beatFlash*3;
+      const grad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r*4);
+      grad.addColorStop(0, `hsla(${p.hue},90%,70%,${0.5*glow})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(p.x,p.y,r*4,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Jellyfish Drift: soft translucent jellies floating upward, tentacles trailing ---
+  let jellies = null;
+  function drawJellyfish(bass,mid,treble,overall){
+    if(!jellies){
+      jellies = [];
+      for(let i=0;i<4;i++) jellies.push({ x:Math.random()*W, y:H+Math.random()*200, vy:-(0.3+Math.random()*0.3), phase:Math.random()*Math.PI*2, hue:Math.random()*60+250, size:40+Math.random()*40, tentacles:6+Math.floor(Math.random()*4) });
+    }
+    for(const j of jellies){
+      j.phase += 0.06+beatFlash*0.1;
+      j.y += j.vy;
+      if(j.y < -100){ j.y=H+100; j.x=Math.random()*W; }
+      const pulse = 0.8+0.25*Math.sin(j.phase);
+      const bellW = j.size*pulse, bellH = j.size*0.7*pulse;
+      const hue = (hueBase*0.3+j.hue)%360;
+      const grad = ctx.createRadialGradient(j.x,j.y-bellH*0.3,0,j.x,j.y,bellW);
+      grad.addColorStop(0, `hsla(${hue},80%,70%,0.35)`);
+      grad.addColorStop(1, `hsla(${hue},80%,70%,0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.ellipse(j.x,j.y,bellW,bellH,0,Math.PI,0); ctx.fill();
+      ctx.strokeStyle = `hsla(${hue},80%,80%,0.4)`; ctx.lineWidth=1;
+      for(let t=0;t<j.tentacles;t++){
+        const tx = j.x + (t-j.tentacles/2)*(bellW*1.6/j.tentacles);
+        const wig = Math.sin(j.phase*1.5+t)*12;
+        ctx.beginPath();
+        ctx.moveTo(tx, j.y);
+        ctx.quadraticCurveTo(tx+wig, j.y+40, tx+wig*1.4, j.y+80+Math.sin(j.phase+t)*10);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // --- Coral Bloom: organic curved branching growth with glowing polyp tips ---
+  function drawCoral(bass,mid,treble,overall){
+    const cx=W/2, cy=H*0.85;
+    const baseLen = Math.min(W,H)*0.14+bass*0.4+beatFlash*20;
+    const maxDepth = 5+Math.floor(mid/90);
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(-Math.PI/2);
+    coralBranch(baseLen, 0, maxDepth, hueBase+150);
+    ctx.restore();
+    function coralBranch(len, ang, depth, hue){
+      if(depth<=0||len<4) return;
+      const x2=Math.cos(ang)*len, y2=Math.sin(ang)*len;
+      ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.quadraticCurveTo(Math.cos(ang-0.15)*len*0.5, Math.sin(ang-0.15)*len*0.5, x2,y2);
+      ctx.strokeStyle = `hsla(${hue%360},75%,60%,${0.3+0.5*(depth/maxDepth)})`;
+      ctx.lineWidth = Math.max(1,depth*1.1);
+      ctx.stroke();
+      if(depth<=2){
+        ctx.fillStyle = `hsla(${(hue+40)%360},85%,70%,${0.5+beatFlash*0.4})`;
+        ctx.beginPath(); ctx.arc(x2,y2,2.5,0,Math.PI*2); ctx.fill();
+      }
+      ctx.save(); ctx.translate(x2,y2);
+      const spread = 0.35+(treble/255)*0.4;
+      coralBranch(len*0.72, -spread, depth-1, hue+12);
+      coralBranch(len*0.72, spread, depth-1, hue-12);
+      if(Math.random()<0.3) coralBranch(len*0.5, 0, depth-1, hue);
+      ctx.restore();
+    }
+  }
+
+  // --- Firefly Meadow: warm soft-glowing dots drifting and flickering in the dark ---
+  let fireflies = null;
+  function drawFireflies(bass,mid,treble,overall){
+    if(!fireflies){
+      fireflies = [];
+      for(let i=0;i<70;i++) fireflies.push({ x:Math.random()*W, y:Math.random()*H, ang:Math.random()*Math.PI*2, phase:Math.random()*Math.PI*2, speed:0.3+Math.random()*0.5 });
+    }
+    for(const f of fireflies){
+      f.phase += 0.03;
+      f.ang += (Math.random()-0.5)*0.2;
+      f.x += Math.cos(f.ang)*f.speed;
+      f.y += Math.sin(f.ang)*f.speed;
+      if(f.x<0)f.x=W; if(f.x>W)f.x=0; if(f.y<0)f.y=H; if(f.y>H)f.y=0;
+      const glow = Math.max(0,Math.sin(f.phase));
+      if(glow<0.05) continue;
+      const r = 2+glow*3+beatFlash*2;
+      const grad = ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,r*5);
+      grad.addColorStop(0, `hsla(50,100%,75%,${glow*0.7})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(f.x,f.y,r*5,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Aurora Veil: vertical shimmering curtains (distinct from the horizontal Aurora ribbons) ---
+  let auroraVeilT = 0;
+  function drawAuroraVeil(bass,mid,treble,overall){
+    auroraVeilT += 0.008+mid*0.0002;
+    const curtains = 5;
+    for(let c=0;c<curtains;c++){
+      const baseX = W*((c+0.5)/curtains);
+      ctx.beginPath();
+      for(let y=0;y<=H;y+=12){
+        const t=y/H;
+        const x = baseX + Math.sin(t*4+auroraVeilT*2+c)*60*(0.4+treble/255) + Math.sin(t*9+auroraVeilT*3)*20;
+        if(y===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      for(let y=H;y>=0;y-=12){
+        const t=y/H;
+        const x = baseX+80 + Math.sin(t*4+auroraVeilT*2+c)*60*(0.4+treble/255);
+        ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      const hue = (hueBase+c*40)%360;
+      const grad = ctx.createLinearGradient(baseX,0,baseX,H);
+      grad.addColorStop(0, `hsla(${hue},85%,60%,0)`);
+      grad.addColorStop(0.5, `hsla(${hue},85%,60%,${0.1+beatFlash*0.15})`);
+      grad.addColorStop(1, `hsla(${hue},85%,60%,0)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+
+  // --- Ink Bloom: blooming diffusions of color like ink dropped in water ---
+  let inkBlots = [];
+  function drawInkBloom(bass,mid,treble,overall){
+    if(Math.random() < 0.04+bass*0.001){
+      inkBlots.push({ x:Math.random()*W, y:Math.random()*H, r:2, hue:hueBase+Math.random()*360, life:1 });
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for(let i=inkBlots.length-1;i>=0;i--){
+      const b = inkBlots[i];
+      b.r += 1.2+beatFlash*2;
+      b.life -= 0.008;
+      if(b.life<=0){ inkBlots.splice(i,1); continue; }
+      const grad = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      grad.addColorStop(0, `hsla(${b.hue%360},80%,60%,${b.life*0.3})`);
+      grad.addColorStop(1, `hsla(${b.hue%360},80%,60%,0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    if(inkBlots.length>60) inkBlots.splice(0, inkBlots.length-60);
+  }
+
+  // --- Silk Ripple: slow-motion layered fabric-like waves ---
+  let silkT = 0;
+  function drawSilkRipple(bass,mid,treble,overall){
+    silkT += 0.01+overall*0.0002;
+    for(let l=0;l<4;l++){
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=14){
+        const t=x/W;
+        const y = H/2 + Math.sin(t*Math.PI*3+silkT*1.5+l*1.3)*60*(0.5+l*0.15) + Math.sin(t*Math.PI*7-silkT*2)*20;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+      const hue = (hueBase+l*25)%360;
+      ctx.fillStyle = `hsla(${hue},60%,70%,0.06)`;
+      ctx.fill();
+    }
+  }
+
+  // --- Crystal Cave: glowing crystal formations growing from floor and ceiling ---
+  let crystals = null;
+  function drawCrystalCave(bass,mid,treble,overall){
+    if(!crystals){
+      crystals = [];
+      for(let i=0;i<26;i++){
+        crystals.push({ x:Math.random()*W, len:40+Math.random()*140, w:8+Math.random()*20, fromTop: Math.random()<0.5, hue: Math.random()*60+180 });
+      }
+    }
+    for(const c of crystals){
+      const glow = 0.4+0.3*Math.sin(performance.now()*0.001+c.x)+beatFlash*0.3;
+      const y0 = c.fromTop? 0 : H;
+      const y1 = c.fromTop? c.len+bass*0.3 : H-c.len-bass*0.3;
+      ctx.beginPath();
+      ctx.moveTo(c.x-c.w/2,y0);
+      ctx.lineTo(c.x,y1);
+      ctx.lineTo(c.x+c.w/2,y0);
+      ctx.closePath();
+      const hue = (hueBase*0.4+c.hue)%360;
+      const grad = ctx.createLinearGradient(c.x,y0,c.x,y1);
+      grad.addColorStop(0, `hsla(${hue},60%,50%,0.05)`);
+      grad.addColorStop(1, `hsla(${hue},90%,70%,${0.3+glow*0.3})`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+
+  // --- Mandala Bloom: layered rotating petals, meditative sacred-geometry mandala ---
+  function drawMandala(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    for(let l=0;l<4;l++){
+      const count = 6+l*4;
+      const rBase = (Math.min(W,H)*0.08)*(l+1) + beatFlash*10;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(rotation*(l%2===0?1:-1)*0.6);
+      for(let i=0;i<count;i++){
+        const ang = (Math.PI*2/count)*i;
+        ctx.save();
+        ctx.rotate(ang);
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.quadraticCurveTo(rBase*0.3, -rBase*0.25, rBase, 0);
+        ctx.quadraticCurveTo(rBase*0.3, rBase*0.25, 0,0);
+        const hue = (hueBase+l*30+i*3)%360;
+        ctx.fillStyle = `hsla(${hue},80%,60%,0.18)`;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  }
+
+  // --- Northern Reflection: aurora over a landscape with a mirrored reflection ---
+  function drawNorthernReflection(bass,mid,treble,overall){
+    const horizonY = H*0.62;
+    drawAuroraBand(horizonY, 1);
+    ctx.save();
+    ctx.translate(0,horizonY*2);
+    ctx.scale(1,-1);
+    ctx.globalAlpha = 0.35;
+    drawAuroraBand(horizonY, 0.6);
+    ctx.restore();
+    ctx.strokeStyle = `hsla(${hueBase%360},60%,70%,0.3)`;
+    ctx.beginPath(); ctx.moveTo(0,horizonY); ctx.lineTo(W,horizonY); ctx.stroke();
+    function drawAuroraBand(baseY, alphaMul){
+      const t = performance.now()*0.0006;
+      for(let b=0;b<3;b++){
+        ctx.beginPath();
+        for(let x=0;x<=W;x+=10){
+          const tt=x/W;
+          const y = baseY - 100 - b*40 + Math.sin(tt*Math.PI*3+t*2+b)*40*(0.5+mid/255);
+          if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.lineTo(W,baseY); ctx.lineTo(0,baseY); ctx.closePath();
+        const hue = (hueBase+b*35)%360;
+        ctx.fillStyle = `hsla(${hue},80%,60%,${0.08*alphaMul+beatFlash*0.05})`;
+        ctx.fill();
+      }
+    }
+  }
+
+  // --- Lightning Web: branching electric bolts crackling across the sky ---
+  function drawLightningWeb(bass,mid,treble,overall){
+    if(beatFlash>0.5 || Math.random()<0.03+treble*0.0006){
+      const x0=Math.random()*W, y0=Math.random()*H*0.3;
+      drawBolt(x0,y0, x0+(Math.random()-0.5)*300, H*0.7+Math.random()*H*0.3, 4);
+    }
+    function drawBolt(x0,y0,x1,y1,depth){
+      if(depth<=0) return;
+      const midx=(x0+x1)/2+(Math.random()-0.5)*60, midy=(y0+y1)/2+(Math.random()-0.5)*30;
+      ctx.strokeStyle = `hsla(${(hueBase+190)%360},90%,85%,${0.5+beatFlash*0.4})`;
+      ctx.lineWidth = depth*0.7;
+      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(midx,midy); ctx.lineTo(x1,y1); ctx.stroke();
+      if(Math.random()<0.5) drawBolt(midx,midy, midx+(Math.random()-0.5)*100, midy+(Math.random()-0.5)*100, depth-1);
+    }
+  }
+
+  // --- Chladni Sand: cymatics-style standing-wave nodal patterns from sound ---
+  let chladniPts = null;
+  function drawChladni(bass,mid,treble,overall){
+    if(!chladniPts){
+      chladniPts = [];
+      for(let i=0;i<500;i++) chladniPts.push({ x:Math.random()*W, y:Math.random()*H });
+    }
+    const cx=W/2, cy=H/2;
+    const m = 3+Math.floor(bass/40);
+    const n = 2+Math.floor(mid/50);
+    const A = Math.min(W,H)/2;
+    for(const p of chladniPts){
+      const nx=(p.x-cx)/A, ny=(p.y-cy)/A;
+      const val = Math.cos(n*Math.PI*nx)*Math.cos(m*Math.PI*ny) - Math.cos(m*Math.PI*nx)*Math.cos(n*Math.PI*ny);
+      const grad = val*8;
+      p.x += (Math.random()-0.5)*1.4 - grad*0.6;
+      p.y += (Math.random()-0.5)*1.4;
+      if(p.x<0||p.x>W) p.x=Math.random()*W;
+      if(p.y<0||p.y>H) p.y=Math.random()*H;
+    }
+    ctx.fillStyle = `hsla(${hueBase%360},20%,90%,0.6)`;
+    for(const p of chladniPts){ ctx.fillRect(p.x,p.y,1.4,1.4); }
+  }
+
+  // --- Black Hole: swirling accretion disk spiraling into a dark event horizon ---
+  let holeParticles = null;
+  function drawBlackHole(bass,mid,treble,overall){
+    if(!holeParticles){
+      holeParticles = [];
+      for(let i=0;i<200;i++) holeParticles.push({ ang:Math.random()*Math.PI*2, r:100+Math.random()*300, speed:0.01+Math.random()*0.02, hue:Math.random()*60 });
+    }
+    const cx=W/2, cy=H/2;
+    for(const p of holeParticles){
+      p.ang += p.speed*(1+bass*0.01);
+      p.r -= 0.4+beatFlash*1.5;
+      if(p.r<20){ p.r=100+Math.random()*300; p.ang=Math.random()*Math.PI*2; }
+      const x=cx+Math.cos(p.ang)*p.r, y=cy+Math.sin(p.ang)*p.r*0.4;
+      const hue=(hueBase+p.hue)%360;
+      ctx.fillStyle = `hsla(${hue},85%,65%,${Math.min(1,(320-p.r)/320)})`;
+      ctx.beginPath(); ctx.arc(x,y,1.6,0,Math.PI*2); ctx.fill();
+    }
+    const holeR = 30+beatFlash*8;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(cx,cy,holeR,0,Math.PI*2); ctx.fill();
+    const grad = ctx.createRadialGradient(cx,cy,holeR,cx,cy,holeR*2.4);
+    grad.addColorStop(0, `hsla(${hueBase%360},90%,60%,0.5)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx,cy,holeR*2.4,0,Math.PI*2); ctx.fill();
+  }
+
+  // --- Supernova: expanding shockwave rings blooming from a radiant core ---
+  let novaWaves = [];
+  function drawSupernova(bass,mid,treble,overall){
+    if(beatFlash>0.85){ novaWaves.push({ r:5, hue:hueBase }); }
+    const cx=W/2, cy=H/2;
+    for(let i=novaWaves.length-1;i>=0;i--){
+      const w = novaWaves[i];
+      w.r += 6+overall*0.05;
+      const alpha = Math.max(0, 1-w.r/(Math.max(W,H)*0.7));
+      if(alpha<=0){ novaWaves.splice(i,1); continue; }
+      ctx.strokeStyle = `hsla(${w.hue%360},90%,70%,${alpha})`;
+      ctx.lineWidth = 3*alpha+1;
+      ctx.beginPath(); ctx.arc(cx,cy,w.r,0,Math.PI*2); ctx.stroke();
+    }
+    const coreR = 20+bass*0.4+beatFlash*30;
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,coreR);
+    grad.addColorStop(0, `hsla(${hueBase%360},95%,80%,0.8)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx,cy,coreR,0,Math.PI*2); ctx.fill();
+  }
+
+  // --- DNA Helix: a rotating double helix drifting slowly across the screen ---
+  function drawDnaHelix(bass,mid,treble,overall){
+    const amp = Math.min(W,H)*0.18+bass*0.3;
+    const t = performance.now()*0.0015;
+    const steps = 40;
+    for(let i=0;i<steps;i++){
+      const frac = i/steps;
+      const y = frac*H;
+      const phase = frac*Math.PI*6 + t*3;
+      const x1 = W/2 + Math.sin(phase)*amp;
+      const x2 = W/2 + Math.sin(phase+Math.PI)*amp;
+      if(i%3===0){
+        ctx.strokeStyle = `hsla(${hueBase%360},60%,70%,0.25)`;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+      }
+      const hue1=(hueBase+frac*80)%360, hue2=(hueBase+180+frac*80)%360;
+      ctx.fillStyle = `hsla(${hue1},85%,65%,0.9)`;
+      ctx.beginPath(); ctx.arc(x1,y,3+beatFlash*2,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = `hsla(${hue2},85%,65%,0.9)`;
+      ctx.beginPath(); ctx.arc(x2,y,3+beatFlash*2,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Desert Dunes: warm layered sunset dunes with a glowing sun ---
+  let duneT = 0;
+  function drawDunes(bass,mid,treble,overall){
+    duneT += 0.003+overall*0.0001;
+    const bands = 6;
+    for(let b=0;b<bands;b++){
+      ctx.beginPath();
+      const baseY = H*0.35 + b*(H*0.62/bands);
+      ctx.moveTo(0,baseY);
+      for(let x=0;x<=W;x+=16){
+        const t=x/W;
+        const y = baseY + Math.sin(t*Math.PI*2.5+duneT*2+b)*18*(1+bass*0.01);
+        ctx.lineTo(x,y);
+      }
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+      const hue = ((28+b*6+hueBase*0.15)%60)+15;
+      ctx.fillStyle = `hsla(${hue},70%,${55-b*5}%,0.5)`;
+      ctx.fill();
+    }
+    const sunY=H*0.28, sunR=50+bass*0.3;
+    const grad = ctx.createRadialGradient(W/2,sunY,0,W/2,sunY,sunR);
+    grad.addColorStop(0,'hsla(40,95%,75%,0.8)');
+    grad.addColorStop(1,'hsla(20,90%,55%,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(W/2,sunY,sunR,0,Math.PI*2); ctx.fill();
+  }
+
+  // --- Prism Rays: rainbow light fanning out and refracting through a prism ---
+  function drawPrism(bass,mid,treble,overall){
+    const cx=W*0.5, cy=H*0.5;
+    const rays = 60;
+    for(let i=0;i<rays;i++){
+      const t = i/rays;
+      const ang = (t-0.5)*Math.PI*0.5 + Math.sin(rotation)*0.1;
+      const len = Math.hypot(W,H)*0.7;
+      const hue = (t*300+hueBase)%360;
+      const grad = ctx.createLinearGradient(cx,cy,cx+Math.cos(ang)*len,cy+Math.sin(ang)*len);
+      grad.addColorStop(0, `hsla(${hue},90%,65%,0.35)`);
+      grad.addColorStop(1, `hsla(${hue},90%,65%,0)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2+beatFlash*2;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(ang)*len,cy+Math.sin(ang)*len); ctx.stroke();
+    }
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rotation*0.5);
+    ctx.beginPath(); ctx.moveTo(-20,-20); ctx.lineTo(20,-20); ctx.lineTo(0,20); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // --- Lotus Bloom: a slow-breathing layered flower, opening and closing with the music ---
+  function drawLotus(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const bloom = 0.5+0.5*Math.sin(performance.now()*0.0006)+bass*0.002+beatFlash*0.3;
+    for(let l=0;l<3;l++){
+      const petals=8;
+      const len = (Math.min(W,H)*0.16)*(l+1)*(0.5+bloom*0.5);
+      for(let i=0;i<petals;i++){
+        const ang = (Math.PI*2/petals)*i + l*(Math.PI/petals) + rotation*0.1;
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.rotate(ang);
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.quadraticCurveTo(len*0.25,-len*0.18,len,0);
+        ctx.quadraticCurveTo(len*0.25,len*0.18,0,0);
+        const hue = (hueBase+l*20+i*4+300)%360;
+        ctx.fillStyle = `hsla(${hue},70%,70%,0.18)`;
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    const glowR = 20+bass*0.2+beatFlash*15;
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
+    grad.addColorStop(0, `hsla(50,90%,80%,0.6)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx,cy,glowR,0,Math.PI*2); ctx.fill();
+  }
+
   function drawParticles(dt){
     ctx.save();
     for(let i=particles.length-1;i>=0;i--){
@@ -1029,37 +2110,62 @@
   }
 
   // ---------- mode switching ----------
+  // enabledModes: which visualizations the user wants to see (favorites filter)
+  const enabledModes = {};
+  MODES.forEach(m => enabledModes[m] = true);
+
+  function enabledIndices(){
+    const arr = [];
+    for(let i=0;i<MODES.length;i++){ if(enabledModes[MODES[i]]) arr.push(i); }
+    return arr.length ? arr : MODES.map((_,i)=>i); // never end up with zero choices
+  }
+
+  function stepMode(direction){
+    const en = enabledIndices();
+    const pos = en.indexOf(modeIndex);
+    let nextPos;
+    if(pos===-1){ nextPos = 0; } else { nextPos = (pos+direction+en.length)%en.length; }
+    return en[nextPos];
+  }
+
   function pickNextMode(){
+    const en = enabledIndices();
     const chaos = parseFloat(document.getElementById('chaos').value); // 0..1
-    if(MODES.length > 1 && Math.random() < chaos){
+    if(en.length > 1 && Math.random() < chaos){
       let idx;
-      do{ idx = Math.floor(Math.random()*MODES.length); } while(idx===modeIndex);
+      do{ idx = en[Math.floor(Math.random()*en.length)]; } while(idx===modeIndex);
       return idx;
     }
-    return (modeIndex+1)%MODES.length;
+    return stepMode(1);
   }
 
   function startTransition(nextIdx){
     if(morphEnabled && !transitioning){
       transFrom = modeIndex; transTo = nextIdx;
-      transStart = performance.now(); transDuration = 1300;
+      transStart = performance.now(); transDuration = 1500;
+      ensureTransCanvases();
       transitioning = true;
     } else if(!transitioning){
       modeIndex = nextIdx;
     }
     showModeLabel(MODES[nextIdx]);
+    updateModeBadge(MODES[nextIdx]);
   }
 
-  function nextMode(){
-    startTransition((modeIndex+1)%MODES.length);
-  }
+  function nextMode(){ startTransition(stepMode(1)); }
+  function prevMode(){ startTransition(stepMode(-1)); }
+
   let modeLabelTimeout;
   function showModeLabel(name){
     const el = document.getElementById('modeLabel');
-    el.textContent = name;
+    el.textContent = MODE_LABELS[name] || name;
     el.classList.add('show');
     clearTimeout(modeLabelTimeout);
     modeLabelTimeout = setTimeout(()=>el.classList.remove('show'), 1100);
+  }
+  function updateModeBadge(name){
+    const el = document.getElementById('modeBadge');
+    if(el) el.textContent = MODE_LABELS[name] || name;
   }
   function toast(msg, ms){
     const el = document.getElementById('modeLabel');
@@ -1087,9 +2193,33 @@
   // ---------- wire up UI ----------
   function enterViz(){
     document.getElementById('startScreen').classList.add('hidden');
+    buildModeCheckboxes();
+    updateModeBadge(MODES[modeIndex]);
     wakeHud();
     lastFrame = performance.now();
     requestAnimationFrame(draw);
+  }
+
+  function buildModeCheckboxes(){
+    const container = document.getElementById('modeCheckboxes');
+    container.innerHTML = '';
+    MODES.forEach((m, idx)=>{
+      const row = document.createElement('label');
+      row.className = 'modeCheckRow';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = enabledModes[m];
+      cb.addEventListener('change', ()=>{
+        enabledModes[m] = cb.checked;
+        if(!cb.checked && idx===modeIndex && !transitioning){
+          nextMode(); // currently-showing mode was just turned off — move along
+        }
+      });
+      const span = document.createElement('span');
+      span.textContent = MODE_LABELS[m] || m;
+      row.appendChild(cb); row.appendChild(span);
+      container.appendChild(row);
+    });
   }
 
   document.getElementById('micBtn').addEventListener('click', startMic);
@@ -1142,12 +2272,35 @@
     }
   });
 
+  function syncFullscreenState(){
+    document.body.classList.toggle('is-fullscreen', isFullscreen());
+  }
+  ['fullscreenchange','webkitfullscreenchange','msfullscreenchange'].forEach(evt=>{
+    document.addEventListener(evt, syncFullscreenState);
+  });
+  syncFullscreenState();
+
+  // double-tap left/right edge of the screen to step back/forward a visual
+  let lastTapTime = 0, lastTapX = 0;
+  window.addEventListener('pointerdown', (e)=>{
+    const now = performance.now();
+    const dx = Math.abs(e.clientX - lastTapX);
+    if(now - lastTapTime < 320 && dx < 60){
+      if(e.clientX < W*0.35){ prevMode(); }
+      else if(e.clientX > W*0.65){ nextMode(); }
+      lastTapTime = 0; // consume the double-tap
+    } else {
+      lastTapTime = now; lastTapX = e.clientX;
+    }
+  });
+
   document.getElementById('versionBadge').textContent = APP_VERSION;
   document.getElementById('verBadgeHud').textContent = APP_VERSION;
   document.title = 'BEATSCOPE ' + APP_VERSION;
 
   window.addEventListener('pointerdown', wakeHud);
   window.addEventListener('pointermove', wakeHud);
+
 
   showModeLabel(MODES[0]);
 })();
