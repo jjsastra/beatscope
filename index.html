@@ -253,7 +253,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v1.8";
+  const APP_VERSION = "v1.9";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -365,7 +365,9 @@
                  'flowfield','flowerlife','bioluminescence','jellyfish','coral','fireflies','auroraveil','inkbloom','silkripple','crystalcave',
                  'mandala','northernreflection','lightningweb','chladni','blackhole','supernova','dnahelix','dunes','prism','lotus',
                  'feedbackecho','fractalflame','dejong','lorenz','phyllotaxis','moire','spirograph','voronoicells','melt','infinitemirror',
-                 'tiedye','marbling','yantra','metatron','waterrings','boidswarm','stringart','kaleidofractal','crystalgrowth','opalescence'];
+                 'tiedye','marbling','yantra','metatron','waterrings','boidswarm','stringart','kaleidofractal','crystalgrowth','opalescence',
+                 'retroplumber','swordadventurer','robothero','boxerko','rungunsoldier','whiphunter','armoredbountyhunter',
+                 'phoenixrebirth','dragonbreath','thunderstorm','crystaltitan','portalstorm','samuraislash','krakenrising','celestialchoir','volcaniceruption','titangolem'];
 
   const MODE_LABELS = {
     kaleido:'Kaleidoscope', plasma:'Plasma Waves', starfield:'Starfield', bars:'Spectrum Bars',
@@ -384,7 +386,12 @@
     phyllotaxis:'Phyllotaxis Spiral', moire:'Moiré Rings', spirograph:'Spirograph', voronoicells:'Voronoi Cells',
     melt:'Melting Drip', infinitemirror:'Infinite Mirror', tiedye:'Tie-Dye Swirl', marbling:'Ink Marbling',
     yantra:'Yantra Geometry', metatron:"Metatron's Cube", waterrings:'Water Ripples', boidswarm:'Boid Swarm',
-    stringart:'String Art', kaleidofractal:'Kaleido Fractal', crystalgrowth:'Crystal Growth', opalescence:'Opalescence'
+    stringart:'String Art', kaleidofractal:'Kaleido Fractal', crystalgrowth:'Crystal Growth', opalescence:'Opalescence',
+    retroplumber:'Pixel Plumber Hero', swordadventurer:'Sword Adventurer', robothero:'Robot Hero', boxerko:'Boxer Knockout',
+    rungunsoldier:'Run & Gun Soldier', whiphunter:'Whip Hunter', armoredbountyhunter:'Bounty Hunter',
+    phoenixrebirth:'Phoenix Rebirth', dragonbreath:'Dragon Breath', thunderstorm:'Thunder Storm', crystaltitan:'Crystal Titan',
+    portalstorm:'Portal Storm', samuraislash:'Samurai Slash', krakenrising:'Kraken Rising', celestialchoir:'Celestial Choir',
+    volcaniceruption:'Volcanic Eruption', titangolem:'Titan Golem'
   };
 
   function modeTrailAlpha(modeName){
@@ -447,6 +454,17 @@
       case 'waterrings':
       case 'stringart':
         return 0.10;
+      case 'phoenixrebirth':
+        return 0.07;
+      case 'dragonbreath':
+      case 'samuraislash':
+      case 'titangolem':
+        return 0.06;
+      case 'crystaltitan':
+      case 'celestialchoir':
+        return 0.08;
+      case 'portalstorm':
+        return 0.05;
       case 'bars':
       case 'warpgrid':
       case 'maze':
@@ -701,6 +719,23 @@
     else if(mode==='kaleidofractal') drawKaleidoFractal(bass, mid, treble, overall);
     else if(mode==='crystalgrowth') drawCrystalGrowth(bass, mid, treble, overall);
     else if(mode==='opalescence') drawOpalescence(bass, mid, treble, overall);
+    else if(mode==='retroplumber') drawRetroPlumber(bass, mid, treble, overall);
+    else if(mode==='swordadventurer') drawSwordAdventurer(bass, mid, treble, overall);
+    else if(mode==='robothero') drawRobotHero(bass, mid, treble, overall);
+    else if(mode==='boxerko') drawBoxerKO(bass, mid, treble, overall);
+    else if(mode==='rungunsoldier') drawRunGunSoldier(bass, mid, treble, overall);
+    else if(mode==='whiphunter') drawWhipHunter(bass, mid, treble, overall);
+    else if(mode==='armoredbountyhunter') drawBountyHunter(bass, mid, treble, overall);
+    else if(mode==='phoenixrebirth') drawPhoenixRebirth(bass, mid, treble, overall);
+    else if(mode==='dragonbreath') drawDragonBreath(bass, mid, treble, overall);
+    else if(mode==='thunderstorm') drawThunderStorm(bass, mid, treble, overall);
+    else if(mode==='crystaltitan') drawCrystalTitan(bass, mid, treble, overall);
+    else if(mode==='portalstorm') drawPortalStorm(bass, mid, treble, overall);
+    else if(mode==='samuraislash') drawSamuraiSlash(bass, mid, treble, overall);
+    else if(mode==='krakenrising') drawKrakenRising(bass, mid, treble, overall);
+    else if(mode==='celestialchoir') drawCelestialChoir(bass, mid, treble, overall);
+    else if(mode==='volcaniceruption') drawVolcanicEruption(bass, mid, treble, overall);
+    else if(mode==='titangolem') drawTitanGolem(bass, mid, treble, overall);
   }
 
   function drawKaleido(bass,mid,treble,overall){
@@ -2730,6 +2765,597 @@
         ctx.fillStyle = `hsla(${hue},70%,${light}%,0.32)`;
         ctx.fillRect(x,y,cellSize+1,cellSize+1);
       }
+    }
+  }
+
+  // ============================================================
+  // Retro 8-bit hero archetypes — original blocky characters and scenes,
+  // inspired by classic action-platformer energy. No existing characters,
+  // names, or specific game likenesses are used; these are original designs.
+  // ============================================================
+
+  // --- Pixel Plumber Hero: jumping hero stomps enemies, raises the victory flag on big beats ---
+  let plumberState = { enemies: [], jumpPhase: 0, flagRaised: 0 };
+  function drawRetroPlumber(bass,mid,treble,overall){
+    const groundY = H*0.82;
+    ctx.fillStyle = '#7a3b1e';
+    ctx.fillRect(0, groundY, W, H-groundY);
+    for(let x=0;x<W;x+=32){ ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.strokeRect(x,groundY,32,20); }
+
+    plumberState.jumpPhase += 0.05+overall*0.002+beatFlash*0.15;
+    const hx = W*0.22;
+    const jumpH = Math.abs(Math.sin(plumberState.jumpPhase))*70;
+    const hy = groundY - 30 - jumpH;
+
+    if(Math.random()<0.01+bass*0.0003 && plumberState.enemies.length<4){
+      plumberState.enemies.push({ x:W*0.6+Math.random()*W*0.3, y:groundY-16, squashed:0 });
+    }
+    ctx.fillStyle = '#e0402a'; ctx.fillRect(hx-10,hy-28,20,10);
+    ctx.fillStyle = '#f0c090'; ctx.fillRect(hx-8,hy-18,16,10);
+    ctx.fillStyle = '#3050c0'; ctx.fillRect(hx-12,hy-8,24,20);
+    ctx.fillStyle = '#e0402a'; ctx.fillRect(hx-12,hy-8,24,8);
+    ctx.fillStyle = '#3050c0'; ctx.fillRect(hx-12,hy+12,8,14); ctx.fillRect(hx+4,hy+12,8,14);
+
+    for(let i=plumberState.enemies.length-1;i>=0;i--){
+      const en = plumberState.enemies[i];
+      en.x -= 1.2+overall*0.02;
+      if(Math.abs(en.x-hx)<20 && jumpH>15 && en.squashed===0){ en.squashed=0.01; }
+      if(en.squashed>0){
+        en.squashed+=0.1;
+        ctx.fillStyle='#3a9e3a';
+        ctx.fillRect(en.x-10, groundY-6, 20, Math.max(0,6*(1-Math.min(1,en.squashed))));
+        if(en.squashed>1.2){ plumberState.enemies.splice(i,1); continue; }
+      } else {
+        ctx.fillStyle='#3a9e3a'; ctx.fillRect(en.x-9, groundY-16,18,16);
+        ctx.fillStyle='#1a5e1a'; ctx.fillRect(en.x-9, groundY-16,18,5);
+      }
+      if(en.x<-20) plumberState.enemies.splice(i,1);
+    }
+
+    if(beatFlash>0.85) plumberState.flagRaised = Math.min(1, plumberState.flagRaised+0.4);
+    else plumberState.flagRaised *= 0.99;
+    const poleX = W*0.85;
+    ctx.strokeStyle='#cfcfcf'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(poleX, groundY); ctx.lineTo(poleX, groundY-140); ctx.stroke();
+    const flagY = groundY-140 + (1-plumberState.flagRaised)*110;
+    ctx.fillStyle=`hsla(${hueBase%360},80%,60%,0.9)`;
+    ctx.beginPath(); ctx.moveTo(poleX,flagY); ctx.lineTo(poleX+26,flagY+8); ctx.lineTo(poleX,flagY+16); ctx.closePath(); ctx.fill();
+
+    if(beatFlash>0.6){
+      ctx.fillStyle=`hsla(50,100%,75%,${beatFlash*0.6})`;
+      for(let i=0;i<4;i++){ ctx.fillRect(hx-20+Math.random()*40, hy-20+Math.random()*30, 3,3); }
+    }
+  }
+
+  // --- Sword Adventurer: torch-lit corridor, sword slashes destroy approaching creatures ---
+  let swordState = { slashes: [], monsters: [] };
+  function drawSwordAdventurer(bass,mid,treble,overall){
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#241c14'); grad.addColorStop(1,'#0d0a08');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<3;i++){
+      const tx=W*(0.15+i*0.35), ty=H*0.35;
+      const flick=0.6+0.4*Math.sin(performance.now()*0.01+i*3)+beatFlash*0.3;
+      const glow=ctx.createRadialGradient(tx,ty,0,tx,ty,60);
+      glow.addColorStop(0,`hsla(30,100%,60%,${0.5*flick})`); glow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(tx,ty,60,0,Math.PI*2); ctx.fill();
+    }
+    const hx=W*0.25, hy=H*0.75;
+    ctx.fillStyle='#3a5aa0'; ctx.fillRect(hx-10,hy-20,20,24);
+    ctx.fillStyle='#e0c090'; ctx.fillRect(hx-7,hy-32,14,12);
+    ctx.fillStyle='#2a7a2a'; ctx.fillRect(hx-9,hy-34,18,6);
+
+    const swing = beatFlash>0.4 ? Math.sin(Math.min(1,beatFlash)*Math.PI)*1.6 : 0;
+    ctx.save(); ctx.translate(hx+8, hy-14); ctx.rotate(-0.6+swing);
+    const swGrad = ctx.createLinearGradient(0,0,34,0);
+    swGrad.addColorStop(0,'#dfe6ee'); swGrad.addColorStop(1,`hsla(${hueBase%360},90%,70%,0.9)`);
+    ctx.fillStyle=swGrad; ctx.fillRect(0,-2,34,4);
+    ctx.restore();
+
+    if(beatFlash>0.8 && Math.random()<0.5){
+      swordState.slashes.push({ x:hx+20, y:hy-14, ang:-0.6+Math.random()*0.4, life:1 });
+    }
+    for(let i=swordState.slashes.length-1;i>=0;i--){
+      const s=swordState.slashes[i];
+      s.x += Math.cos(s.ang)*14; s.y += Math.sin(s.ang)*14; s.life-=0.05;
+      if(s.life<=0){ swordState.slashes.splice(i,1); continue; }
+      ctx.strokeStyle=`hsla(${hueBase%360},90%,75%,${s.life})`;
+      ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(s.x-14,s.y); ctx.lineTo(s.x+14,s.y); ctx.stroke();
+    }
+    if(Math.random()<0.01+treble*0.0003 && swordState.monsters.length<3){
+      swordState.monsters.push({ x:W*0.6+Math.random()*W*0.35, y:H*0.7, alive:true, burst:0 });
+    }
+    for(let i=swordState.monsters.length-1;i>=0;i--){
+      const m=swordState.monsters[i];
+      if(m.alive){
+        ctx.fillStyle='#5a1a5a'; ctx.fillRect(m.x-8,m.y-14,16,14);
+        m.x -= 0.6;
+        if(m.x < hx+50 && swordState.slashes.length>0){ m.alive=false; }
+      } else {
+        m.burst+=0.15;
+        ctx.fillStyle=`hsla(280,70%,60%,${Math.max(0,1-m.burst)})`;
+        for(let k=0;k<5;k++) ctx.fillRect(m.x-10+Math.random()*20, m.y-10+Math.random()*20-m.burst*20,3,3);
+        if(m.burst>1.2) swordState.monsters.splice(i,1);
+      }
+      if(m.x<-20) swordState.monsters.splice(i,1);
+    }
+  }
+
+  // --- Robot Hero: energy blasts down a factory corridor, destroying approaching robots ---
+  let robotState = { shots: [], enemies: [] };
+  function drawRobotHero(bass,mid,treble,overall){
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#10151f'); grad.addColorStop(1,'#05070b');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    for(let x=40;x<W;x+=90){ ctx.strokeStyle='rgba(120,180,255,0.15)'; ctx.strokeRect(x,H*0.2,50,H*0.6); }
+    const hx=W*0.22, hy=H*0.75;
+    ctx.fillStyle='#3a7ee0'; ctx.fillRect(hx-11,hy-26,22,26);
+    ctx.fillStyle='#dfe8ff'; ctx.fillRect(hx-7,hy-38,14,12);
+    ctx.fillStyle='#1a4ea0'; ctx.fillRect(hx-14,hy-4,10,20); ctx.fillRect(hx+4,hy-4,10,20);
+    if(beatFlash>0.5 && Math.random()<0.6){
+      robotState.shots.push({ x:hx+14, y:hy-16, hue:hueBase });
+    }
+    for(let i=robotState.shots.length-1;i>=0;i--){
+      const s=robotState.shots[i]; s.x+=14;
+      ctx.fillStyle=`hsla(${s.hue%360},90%,70%,0.9)`;
+      ctx.beginPath(); ctx.arc(s.x,s.y,5,0,Math.PI*2); ctx.fill();
+      if(s.x>W) robotState.shots.splice(i,1);
+    }
+    if(Math.random()<0.012+bass*0.0003 && robotState.enemies.length<4){
+      robotState.enemies.push({ x:W*0.6+Math.random()*W*0.35, y:H*0.72, dead:0 });
+    }
+    for(let i=robotState.enemies.length-1;i>=0;i--){
+      const en=robotState.enemies[i];
+      if(en.dead===0){
+        en.x -= 1;
+        ctx.fillStyle='#a03030'; ctx.fillRect(en.x-9,en.y-20,18,20);
+        for(const s of robotState.shots){ if(Math.abs(s.x-en.x)<14 && Math.abs(s.y-(en.y-10))<14){ en.dead=0.01; } }
+      } else {
+        en.dead+=0.12;
+        ctx.fillStyle=`hsla(20,90%,60%,${Math.max(0,1-en.dead)})`;
+        for(let k=0;k<6;k++) ctx.fillRect(en.x-12+Math.random()*24, en.y-20+Math.random()*24-en.dead*16,3,3);
+        if(en.dead>1.3) robotState.enemies.splice(i,1);
+      }
+      if(en.x<-20) robotState.enemies.splice(i,1);
+    }
+  }
+
+  // --- Boxer Knockout: a ring, a punch thrown every beat, and a decisive knockout on big hits ---
+  let boxState = { oppHit: 0 };
+  function drawBoxerKO(bass,mid,treble,overall){
+    const grad=ctx.createRadialGradient(W/2,H*0.5,50,W/2,H*0.5,W*0.7);
+    grad.addColorStop(0,'#3a2020'); grad.addColorStop(1,'#0a0505');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=4; ctx.strokeRect(W*0.1,H*0.15,W*0.8,H*0.7);
+
+    const hx=W*0.3, hy=H*0.68;
+    const punch = beatFlash>0.5 ? Math.sin(Math.min(1,beatFlash*1.3)*Math.PI) : 0;
+    ctx.fillStyle='#d0432a'; ctx.fillRect(hx-12,hy-30,24,30);
+    ctx.fillStyle='#e0c090'; ctx.fillRect(hx-8,hy-42,16,12);
+    ctx.fillStyle='#701818'; ctx.fillRect(hx+10, hy-24, 20+punch*30, 10);
+
+    boxState.oppHit = Math.max(0, boxState.oppHit - 0.02);
+    if(beatFlash>0.85) boxState.oppHit = 1;
+    const ox = W*0.68 + boxState.oppHit*40;
+    const oy = H*0.68 - boxState.oppHit*20;
+    ctx.save(); ctx.translate(ox,oy); ctx.rotate(boxState.oppHit*0.5);
+    ctx.fillStyle='#3050a0'; ctx.fillRect(-12,-30,24,30);
+    ctx.fillStyle='#e0c090'; ctx.fillRect(-8,-42,16,12);
+    ctx.restore();
+
+    if(boxState.oppHit>0.7){
+      ctx.fillStyle=`hsla(50,100%,70%,${boxState.oppHit})`;
+      for(let i=0;i<5;i++){
+        const a=Math.random()*Math.PI*2, r=20+Math.random()*20;
+        ctx.beginPath(); ctx.arc(ox+Math.cos(a)*r, oy-20+Math.sin(a)*r, 2.5,0,Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  // --- Run & Gun Soldier: sprays bullets across a jungle base, mowing down waves of enemies ---
+  let gunState = { bullets: [], enemies: [] };
+  function drawRunGunSoldier(bass,mid,treble,overall){
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#0e2a12'); grad.addColorStop(1,'#06140a');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<8;i++){ ctx.fillStyle='rgba(20,80,30,0.4)'; ctx.fillRect((i*130+((performance.now()*0.02)%130)),H*0.55,20,H*0.35); }
+    const hx=W*0.25, hy=H*0.75;
+    ctx.fillStyle='#4a5a3a'; ctx.fillRect(hx-10,hy-24,20,24);
+    ctx.fillStyle='#e0c090'; ctx.fillRect(hx-7,hy-34,14,10);
+    ctx.fillStyle='#2a2a2a'; ctx.fillRect(hx+6,hy-18,20,4);
+
+    if(beatFlash>0.3 && Math.random()<0.7){
+      gunState.bullets.push({ x:hx+26, y:hy-16+((Math.random()-0.5)*4), hue:hueBase });
+    }
+    for(let i=gunState.bullets.length-1;i>=0;i--){
+      const b=gunState.bullets[i]; b.x+=16;
+      ctx.fillStyle=`hsla(${b.hue%360},95%,70%,0.9)`; ctx.fillRect(b.x,b.y,8,2);
+      if(b.x>W) gunState.bullets.splice(i,1);
+    }
+    if(Math.random()<0.015+bass*0.0004 && gunState.enemies.length<5){
+      gunState.enemies.push({ x:W*0.6+Math.random()*W*0.35, y:H*0.7, dead:0 });
+    }
+    for(let i=gunState.enemies.length-1;i>=0;i--){
+      const en=gunState.enemies[i];
+      if(en.dead===0){
+        en.x -= 1.4;
+        ctx.fillStyle='#8a2a2a'; ctx.fillRect(en.x-8,en.y-18,16,18);
+        for(const b of gunState.bullets){ if(Math.abs(b.x-en.x)<12 && Math.abs(b.y-(en.y-10))<12){ en.dead=0.01; } }
+      } else {
+        en.dead+=0.14;
+        ctx.fillStyle=`hsla(15,90%,55%,${Math.max(0,1-en.dead)})`;
+        for(let k=0;k<6;k++) ctx.fillRect(en.x-10+Math.random()*20,en.y-18+Math.random()*20-en.dead*16,3,3);
+        if(en.dead>1.3) gunState.enemies.splice(i,1);
+      }
+      if(en.x<-20) gunState.enemies.splice(i,1);
+    }
+  }
+
+  // --- Whip Hunter: cracks a whip through a torch-lit hall, shattering approaching creatures ---
+  let whipState = { monsters: [] };
+  function drawWhipHunter(bass,mid,treble,overall){
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#1a1420'); grad.addColorStop(1,'#0a0710');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<3;i++){
+      const tx=W*(0.2+i*0.3), ty=H*0.3;
+      const flick=0.5+0.5*Math.sin(performance.now()*0.012+i*2)+beatFlash*0.3;
+      ctx.fillStyle=`hsla(35,100%,55%,${0.5*flick})`;
+      ctx.beginPath(); ctx.arc(tx,ty,6,0,Math.PI*2); ctx.fill();
+    }
+    const hx=W*0.28, hy=H*0.72;
+    ctx.fillStyle='#4a3a6a'; ctx.fillRect(hx-10,hy-26,20,26);
+    ctx.fillStyle='#e0c090'; ctx.fillRect(hx-7,hy-38,14,12);
+    const crack = beatFlash>0.4;
+    if(crack){
+      ctx.strokeStyle=`hsla(${hueBase%360},80%,70%,0.85)`;
+      ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.moveTo(hx+10,hy-16);
+      for(let i=1;i<=5;i++){
+        ctx.lineTo(hx+10+i*20, hy-16+Math.sin(i+performance.now()*0.01)*10*beatFlash);
+      }
+      ctx.stroke();
+    }
+    if(Math.random()<0.01+treble*0.0003 && whipState.monsters.length<3){
+      whipState.monsters.push({ x:W*0.6+Math.random()*W*0.3, y:H*0.6+Math.random()*H*0.1, dead:0 });
+    }
+    for(let i=whipState.monsters.length-1;i>=0;i--){
+      const m=whipState.monsters[i];
+      if(m.dead===0){
+        m.x -= 0.8;
+        ctx.fillStyle='#3a1a3a'; ctx.fillRect(m.x-8,m.y-10,16,10);
+        if(crack && m.x<hx+110) m.dead=0.01;
+      } else {
+        m.dead+=0.15;
+        ctx.fillStyle=`hsla(280,60%,55%,${Math.max(0,1-m.dead)})`;
+        for(let k=0;k<5;k++) ctx.fillRect(m.x-8+Math.random()*16,m.y-10+Math.random()*16-m.dead*14,3,3);
+        if(m.dead>1.3) whipState.monsters.splice(i,1);
+      }
+      if(m.x<-20) whipState.monsters.splice(i,1);
+    }
+  }
+
+  // --- Bounty Hunter: charges a beam in a glowing alien cavern, firing it out when fully charged ---
+  let bountyState = { charge: 0, shots: [] };
+  function drawBountyHunter(bass,mid,treble,overall){
+    const grad=ctx.createRadialGradient(W*0.5,H*0.6,20,W*0.5,H*0.6,W*0.7);
+    grad.addColorStop(0,'#0a2a1a'); grad.addColorStop(1,'#020a06');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<12;i++){
+      const x=(i*97+performance.now()*0.01)%W, y=H*0.3+Math.sin(i+performance.now()*0.0006)*40;
+      ctx.fillStyle='hsla(160,80%,60%,0.25)'; ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    }
+    const hx=W*0.25, hy=H*0.72;
+    ctx.fillStyle='#c0522a'; ctx.fillRect(hx-12,hy-30,24,30);
+    ctx.fillStyle='#f0d060'; ctx.fillRect(hx-8,hy-40,16,10);
+    bountyState.charge = Math.min(1, bountyState.charge + overall*0.003 + (beatFlash>0.6?0.4:0));
+    const chargeR = 4+bountyState.charge*14;
+    ctx.fillStyle=`hsla(160,90%,65%,${0.5+bountyState.charge*0.5})`;
+    ctx.beginPath(); ctx.arc(hx+18,hy-16,chargeR,0,Math.PI*2); ctx.fill();
+    if(bountyState.charge>=1){
+      bountyState.shots.push({ x:hx+22, y:hy-16, r:14 });
+      bountyState.charge=0;
+    }
+    for(let i=bountyState.shots.length-1;i>=0;i--){
+      const s=bountyState.shots[i]; s.x+=18;
+      const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r);
+      g.addColorStop(0,'hsla(160,95%,75%,0.9)'); g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+      if(s.x>W) bountyState.shots.splice(i,1);
+    }
+  }
+
+  // ============================================================
+  // Original spectacle designs — big, dramatic, built to wow
+  // ============================================================
+
+  // --- Phoenix Rebirth: a firebird shape rendered in glowing embers, wings breathing with the beat ---
+  let phoenixState = { emberParticles: [] };
+  function drawPhoenixRebirth(bass,mid,treble,overall){
+    if(!phoenixState.phase) phoenixState.phase = 0;
+    phoenixState.phase += 0.01+overall*0.0003;
+    const cx=W/2, cy=H*0.5;
+    const wingSpread = 0.6+0.4*Math.sin(phoenixState.phase*2)+beatFlash*0.3;
+    const size = Math.min(W,H)*0.32;
+    ctx.save(); ctx.translate(cx,cy);
+    const bodyGrad = ctx.createRadialGradient(0,0,0,0,0,size*0.5);
+    bodyGrad.addColorStop(0,`hsla(${(hueBase+20)%360},95%,65%,0.8)`);
+    bodyGrad.addColorStop(1,`hsla(${(hueBase+20)%360},95%,45%,0)`);
+    ctx.fillStyle=bodyGrad;
+    ctx.beginPath(); ctx.ellipse(0,0,size*0.18,size*0.4,0,0,Math.PI*2); ctx.fill();
+    for(const side of [-1,1]){
+      ctx.save(); ctx.scale(side,1);
+      ctx.beginPath();
+      ctx.moveTo(0,-size*0.1);
+      ctx.quadraticCurveTo(size*0.5*wingSpread, -size*0.5, size*0.9*wingSpread, -size*0.15);
+      ctx.quadraticCurveTo(size*0.5*wingSpread, size*0.05, size*0.15, size*0.15);
+      ctx.closePath();
+      const wGrad = ctx.createLinearGradient(0,0,size*0.9,0);
+      wGrad.addColorStop(0, `hsla(${hueBase%360},95%,55%,0.6)`);
+      wGrad.addColorStop(1, `hsla(${(hueBase+50)%360},95%,60%,0.1)`);
+      ctx.fillStyle=wGrad; ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+    if(Math.random()<0.6+beatFlash*2){
+      phoenixState.emberParticles.push({ x:cx+(Math.random()-0.5)*size, y:cy+(Math.random()-0.5)*size, vy:-(0.5+Math.random()), life:1, hue:hueBase+Math.random()*40 });
+    }
+    for(let i=phoenixState.emberParticles.length-1;i>=0;i--){
+      const p=phoenixState.emberParticles[i];
+      p.y+=p.vy; p.life-=0.015;
+      if(p.life<=0){ phoenixState.emberParticles.splice(i,1); continue; }
+      ctx.fillStyle=`hsla(${p.hue%360},95%,60%,${p.life})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,2+beatFlash*2,0,Math.PI*2); ctx.fill();
+    }
+    if(phoenixState.emberParticles.length>200) phoenixState.emberParticles.splice(0,phoenixState.emberParticles.length-200);
+  }
+
+  // --- Dragon Breath: a long serpentine body coils across the screen, breathing fire on the beat ---
+  let dragonT = 0;
+  function drawDragonBreath(bass,mid,treble,overall){
+    dragonT += 0.02+overall*0.0004;
+    const segs=16;
+    const headX=W*0.25, headY=H*0.4+Math.sin(dragonT)*40;
+    ctx.beginPath();
+    for(let i=0;i<segs;i++){
+      const t=i/segs;
+      const x = headX + t*W*0.55;
+      const y = headY + Math.sin(dragonT*1.5 - t*4)*60;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    const hue=(hueBase+100)%360;
+    ctx.strokeStyle=`hsla(${hue},70%,45%,0.7)`;
+    ctx.lineWidth=22-treble*0.02;
+    ctx.lineCap='round';
+    ctx.stroke();
+    ctx.fillStyle=`hsla(${hue},70%,40%,0.9)`;
+    ctx.beginPath(); ctx.arc(headX,headY,18,0,Math.PI*2); ctx.fill();
+    const breathLen = 120+bass*1.2+beatFlash*100;
+    const bgrad = ctx.createLinearGradient(headX-30,headY,headX-30-breathLen,headY);
+    bgrad.addColorStop(0,'hsla(40,100%,60%,0.8)');
+    bgrad.addColorStop(1,'hsla(10,100%,50%,0)');
+    ctx.fillStyle=bgrad;
+    ctx.beginPath();
+    ctx.moveTo(headX-16,headY-14);
+    ctx.lineTo(headX-16-breathLen, headY-40-Math.sin(dragonT*3)*20);
+    ctx.lineTo(headX-16-breathLen, headY+40+Math.sin(dragonT*3)*20);
+    ctx.lineTo(headX-16,headY+14);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // --- Thunder Storm: branching lightning cracks across a churning storm sky ---
+  function drawThunderStorm(bass,mid,treble,overall){
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#0a0a14'); grad.addColorStop(1,'#141420');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<6;i++){
+      const cx=(i*W/6+performance.now()*0.005)%W, cy=H*0.15+Math.sin(i)*20;
+      ctx.fillStyle='rgba(60,60,80,0.3)';
+      ctx.beginPath(); ctx.ellipse(cx,cy,90,30,0,0,Math.PI*2); ctx.fill();
+    }
+    if(beatFlash>0.6 || Math.random()<0.015+treble*0.0003){
+      const x0=Math.random()*W;
+      boltBranch(x0,H*0.15,x0+(Math.random()-0.5)*200,H,4);
+    }
+    function boltBranch(x0,y0,x1,y1,depth){
+      if(depth<=0) return;
+      const midx=(x0+x1)/2+(Math.random()-0.5)*80, midy=(y0+y1)/2+(Math.random()-0.5)*30;
+      ctx.strokeStyle=`hsla(220,100%,90%,${0.7+beatFlash*0.3})`;
+      ctx.lineWidth=depth;
+      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(midx,midy); ctx.lineTo(x1,y1); ctx.stroke();
+      if(Math.random()<0.6) boltBranch(midx,midy, midx+(Math.random()-0.5)*120, midy+(Math.random()-0.5)*100, depth-1);
+    }
+    for(let i=0;i<40;i++){
+      const x=(i*37+performance.now()*0.3)%W, y=(i*53+performance.now()*0.6)%H;
+      ctx.strokeStyle='rgba(180,190,220,0.2)';
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-4,y+14); ctx.stroke();
+    }
+  }
+
+  // --- Crystal Titan: a colossal humanoid built from faceted translucent crystal shards ---
+  function drawCrystalTitan(bass,mid,treble,overall){
+    const cx=W/2, cy=H*0.55;
+    const scale = Math.min(W,H)*0.4*(0.9+0.1*Math.sin(performance.now()*0.001)+beatFlash*0.1);
+    const parts = [
+      {dx:0,dy:-0.35,w:0.22,h:0.25}, {dx:0,dy:0.0,w:0.4,h:0.4},
+      {dx:-0.28,dy:-0.05,w:0.16,h:0.3}, {dx:0.28,dy:-0.05,w:0.16,h:0.3},
+      {dx:-0.14,dy:0.35,w:0.16,h:0.3}, {dx:0.14,dy:0.35,w:0.16,h:0.3}
+    ];
+    for(const p of parts){
+      const x=cx+p.dx*scale, y=cy+p.dy*scale, w=p.w*scale, h=p.h*scale;
+      ctx.save(); ctx.translate(x,y); ctx.rotate(Math.sin(performance.now()*0.0007+p.dx)*0.05);
+      ctx.beginPath();
+      ctx.moveTo(0,-h/2); ctx.lineTo(w/2,0); ctx.lineTo(0,h/2); ctx.lineTo(-w/2,0); ctx.closePath();
+      const hue=(hueBase+p.dx*80)%360;
+      const g=ctx.createLinearGradient(-w/2,-h/2,w/2,h/2);
+      g.addColorStop(0,`hsla(${hue},70%,75%,0.5)`); g.addColorStop(1,`hsla(${hue+40},80%,55%,0.25)`);
+      ctx.fillStyle=g; ctx.fill();
+      ctx.strokeStyle=`hsla(${hue},90%,85%,0.6)`; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.restore();
+    }
+    const glowR = scale*0.3+beatFlash*30;
+    const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
+    glow.addColorStop(0,`hsla(${hueBase%360},95%,80%,0.6)`); glow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(cx,cy,glowR,0,Math.PI*2); ctx.fill();
+  }
+
+  // --- Portal Storm: multiple swirling portal rings scattered across the screen ---
+  let portals = null;
+  function drawPortalStorm(bass,mid,treble,overall){
+    if(!portals){
+      portals=[];
+      for(let i=0;i<4;i++) portals.push({ x:Math.random()*W, y:Math.random()*H, r:40+Math.random()*30, hue:Math.random()*360, spin:0 });
+    }
+    for(const p of portals){
+      p.spin += 0.03+beatFlash*0.05;
+      for(let ring=0;ring<4;ring++){
+        const rr=p.r*(0.4+ring*0.2);
+        ctx.beginPath(); ctx.ellipse(p.x,p.y,rr,rr*0.9,p.spin+ring,0,Math.PI*2);
+        ctx.strokeStyle=`hsla(${(p.hue+ring*20)%360},85%,60%,0.4)`;
+        ctx.lineWidth=3; ctx.stroke();
+      }
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+      g.addColorStop(0,`hsla(${p.hue%360},90%,70%,0.3)`); g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Samurai Slash: a lone figure at the center, rapid glowing sword slashes radiating outward ---
+  let slashState = { slashes: [] };
+  function drawSamuraiSlash(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    ctx.fillStyle='#7a5a3a'; ctx.fillRect(cx-10,cy-20,20,40);
+    ctx.fillStyle='#e0c090'; ctx.fillRect(cx-7,cy-32,14,12);
+    if(beatFlash>0.5 && Math.random()<0.8){
+      const ang=Math.random()*Math.PI*2;
+      slashState.slashes.push({ ang, life:1, hue:hueBase });
+    }
+    for(let i=slashState.slashes.length-1;i>=0;i--){
+      const s=slashState.slashes[i];
+      s.life-=0.03;
+      if(s.life<=0){ slashState.slashes.splice(i,1); continue; }
+      const len=Math.min(W,H)*0.45;
+      ctx.strokeStyle=`hsla(${s.hue%360},90%,75%,${s.life})`;
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.moveTo(cx-Math.cos(s.ang)*len, cy-Math.sin(s.ang)*len);
+      ctx.lineTo(cx+Math.cos(s.ang)*len, cy+Math.sin(s.ang)*len);
+      ctx.stroke();
+    }
+    if(slashState.slashes.length>40) slashState.slashes.splice(0,slashState.slashes.length-40);
+  }
+
+  // --- Kraken Rising: writhing tentacles erupting from the depths, slamming down on big beats ---
+  let krakenT = 0;
+  function drawKrakenRising(bass,mid,treble,overall){
+    krakenT += 0.015+overall*0.0004;
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#031018'); grad.addColorStop(1,'#000');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    const tentacles=6;
+    for(let t=0;t<tentacles;t++){
+      const baseX = (W/tentacles)*(t+0.5);
+      ctx.beginPath();
+      ctx.moveTo(baseX,H);
+      const segs=8;
+      for(let i=1;i<=segs;i++){
+        const f=i/segs;
+        const x = baseX + Math.sin(krakenT*1.5+t+f*3)*60*f;
+        const y = H - f*H*0.75*(0.6+0.4*Math.sin(krakenT+t));
+        ctx.lineTo(x,y);
+      }
+      const hue=(180+hueBase*0.3+t*10)%360;
+      ctx.strokeStyle=`hsla(${hue},70%,40%,0.6)`;
+      ctx.lineWidth=14-t;
+      ctx.lineCap='round';
+      ctx.stroke();
+    }
+    if(beatFlash>0.85){
+      const cx=W/2;
+      ctx.strokeStyle='hsla(190,80%,70%,0.6)';
+      ctx.beginPath(); ctx.arc(cx,H*0.85,80+beatFlash*60,0,Math.PI*2); ctx.stroke();
+    }
+  }
+
+  // --- Celestial Choir: rows of glowing angelic forms pulsing in unison, radiant light from above ---
+  function drawCelestialChoir(bass,mid,treble,overall){
+    const rows=3, cols=7;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const x = W*((c+0.5)/cols), y=H*(0.3+r*0.18);
+        const pulse=0.5+0.5*Math.sin(performance.now()*0.002+r+c)+beatFlash*0.4;
+        const size=18+pulse*10;
+        ctx.save(); ctx.translate(x,y);
+        const hue=(hueBase+r*30+c*10)%360;
+        const g=ctx.createRadialGradient(0,0,0,0,0,size);
+        g.addColorStop(0,`hsla(${hue},80%,85%,${0.5+pulse*0.4})`); g.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,size,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(-size*0.9,0,size*0.7,size*0.3,0.3,0,Math.PI*2);
+        ctx.fillStyle=`hsla(${hue},70%,90%,0.15)`; ctx.fill();
+        ctx.beginPath(); ctx.ellipse(size*0.9,0,size*0.7,size*0.3,-0.3,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    }
+    const cx=W/2;
+    for(let i=0;i<20;i++){
+      const ang=(Math.PI/20)*i-Math.PI/2-Math.PI/4;
+      ctx.strokeStyle='hsla(50,90%,85%,0.06)';
+      ctx.lineWidth=6;
+      ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx+Math.cos(ang)*H*1.2, Math.sin(ang)*H*1.2+H*0.3); ctx.stroke();
+    }
+  }
+
+  // --- Volcanic Eruption: a volcano bursts with glowing embers arcing skyward ---
+  let lavaBursts = [];
+  function drawVolcanicEruption(bass,mid,treble,overall){
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#1a0808'); grad.addColorStop(1,'#000');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    const cx=W/2, baseY=H*0.85;
+    ctx.beginPath();
+    ctx.moveTo(cx-W*0.3,H); ctx.lineTo(cx,baseY-100); ctx.lineTo(cx+W*0.3,H); ctx.closePath();
+    ctx.fillStyle='#2a1414'; ctx.fill();
+    const crR = 60+beatFlash*30;
+    const crGlow=ctx.createRadialGradient(cx,baseY-100,0,cx,baseY-100,crR);
+    crGlow.addColorStop(0,'hsla(20,100%,60%,0.9)'); crGlow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=crGlow; ctx.beginPath(); ctx.arc(cx,baseY-100,crR,0,Math.PI*2); ctx.fill();
+    if(Math.random()<0.3+beatFlash*2){
+      lavaBursts.push({ x:cx+(Math.random()-0.5)*30, y:baseY-100, vx:(Math.random()-0.5)*4, vy:-(4+Math.random()*6), life:1, hue:15+Math.random()*25 });
+    }
+    for(let i=lavaBursts.length-1;i>=0;i--){
+      const p=lavaBursts[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.012;
+      if(p.life<=0){ lavaBursts.splice(i,1); continue; }
+      ctx.fillStyle=`hsla(${p.hue},95%,55%,${p.life})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,3+p.life*3,0,Math.PI*2); ctx.fill();
+    }
+    if(lavaBursts.length>250) lavaBursts.splice(0,lavaBursts.length-250);
+  }
+
+  // --- Titan Golem: floating boulder fragments assemble into a colossal figure, then scatter and repeat ---
+  let golemFrags = null, golemAssembled = 0;
+  function drawTitanGolem(bass,mid,treble,overall){
+    if(!golemFrags){
+      golemFrags=[];
+      const parts=[{dx:0,dy:-0.3},{dx:0,dy:0},{dx:-0.25,dy:0},{dx:0.25,dy:0},{dx:-0.12,dy:0.3},{dx:0.12,dy:0.3}];
+      for(const p of parts) golemFrags.push({ tx:p.dx, ty:p.dy, x:Math.random()*2-1, y:Math.random()*2-1, hue:Math.random()*40 });
+    }
+    golemAssembled = Math.min(1, golemAssembled + 0.003 + (beatFlash>0.6?0.05:0));
+    const cx=W/2, cy=H*0.55, scale=Math.min(W,H)*0.4;
+    for(const f of golemFrags){
+      const x = cx + (f.x*(1-golemAssembled) + f.tx*golemAssembled)*scale;
+      const y = cy + (f.y*(1-golemAssembled) + f.ty*golemAssembled)*scale;
+      const hue=(20+f.hue)%360;
+      ctx.fillStyle=`hsla(${hue},60%,35%,0.9)`;
+      ctx.fillRect(x-20,y-20,40,40);
+      ctx.strokeStyle=`hsla(50,90%,60%,${0.3+beatFlash*0.5})`;
+      ctx.lineWidth=1.5; ctx.strokeRect(x-20,y-20,40,40);
+    }
+    if(golemAssembled>0.9){
+      const glowR=40+beatFlash*30;
+      const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
+      glow.addColorStop(0,'hsla(45,100%,70%,0.7)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(cx,cy,glowR,0,Math.PI*2); ctx.fill();
+    }
+    if(golemAssembled>=1 && Math.random()<0.003){
+      golemAssembled=0;
+      for(const f of golemFrags){ f.x=Math.random()*2-1; f.y=Math.random()*2-1; }
     }
   }
 
