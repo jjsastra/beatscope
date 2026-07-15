@@ -135,6 +135,9 @@
     backdrop-filter: blur(8px);
     margin-bottom:8px;
     max-width:300px;
+    max-height: min(72vh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     pointer-events:auto;
   }
   #settingsPanel.open{display:flex;}
@@ -165,8 +168,6 @@
     display:grid;
     grid-template-columns: 1fr 1fr;
     gap:4px 10px;
-    max-height:180px;
-    overflow-y:auto;
     padding-right:4px;
   }
   .modeCheckRow{
@@ -174,6 +175,8 @@
     font-size:11px; color:var(--hud-fg);
   }
   .modeCheckRow input{ accent-color:var(--accent); width:14px; height:14px; }
+
+  #modeLabel{
     position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
     z-index:15; pointer-events:none;
     font-size:13px; letter-spacing:0.3em; text-transform:uppercase;
@@ -186,6 +189,9 @@
   @media (max-width: 480px){
     .srcBtn{min-width:150px; padding:14px 16px;}
     .badge{font-size:10px; padding:6px 9px;}
+  }
+  @media (max-height: 500px){
+    #settingsPanel{ max-height: 84vh; }
   }
 </style>
 </head>
@@ -247,7 +253,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v1.7";
+  const APP_VERSION = "v1.8";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
