@@ -247,7 +247,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v1.5";
+  const APP_VERSION = "v1.7";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -357,7 +357,9 @@
                  'aurora','nexus','spinner','julia','nested','liquid','lasers','maze','glowsticks','horizon',
                  'hyperspace','wormhole','nebula','asteroids','fractaltunnel','gridtunnel','galaxy','comets','fractalzoom','deepfield','solarsystem',
                  'flowfield','flowerlife','bioluminescence','jellyfish','coral','fireflies','auroraveil','inkbloom','silkripple','crystalcave',
-                 'mandala','northernreflection','lightningweb','chladni','blackhole','supernova','dnahelix','dunes','prism','lotus'];
+                 'mandala','northernreflection','lightningweb','chladni','blackhole','supernova','dnahelix','dunes','prism','lotus',
+                 'feedbackecho','fractalflame','dejong','lorenz','phyllotaxis','moire','spirograph','voronoicells','melt','infinitemirror',
+                 'tiedye','marbling','yantra','metatron','waterrings','boidswarm','stringart','kaleidofractal','crystalgrowth','opalescence'];
 
   const MODE_LABELS = {
     kaleido:'Kaleidoscope', plasma:'Plasma Waves', starfield:'Starfield', bars:'Spectrum Bars',
@@ -371,7 +373,12 @@
     coral:'Coral Bloom', fireflies:'Firefly Meadow', auroraveil:'Aurora Veil', inkbloom:'Ink Bloom',
     silkripple:'Silk Ripple', crystalcave:'Crystal Cave', mandala:'Mandala Bloom', northernreflection:'Northern Reflection',
     lightningweb:'Lightning Web', chladni:'Chladni Sand', blackhole:'Black Hole', supernova:'Supernova',
-    dnahelix:'DNA Helix', dunes:'Desert Dunes', prism:'Prism Rays', lotus:'Lotus Bloom'
+    dnahelix:'DNA Helix', dunes:'Desert Dunes', prism:'Prism Rays', lotus:'Lotus Bloom',
+    feedbackecho:'Feedback Echo', fractalflame:'Fractal Flame', dejong:'De Jong Attractor', lorenz:'Lorenz Attractor',
+    phyllotaxis:'Phyllotaxis Spiral', moire:'Moiré Rings', spirograph:'Spirograph', voronoicells:'Voronoi Cells',
+    melt:'Melting Drip', infinitemirror:'Infinite Mirror', tiedye:'Tie-Dye Swirl', marbling:'Ink Marbling',
+    yantra:'Yantra Geometry', metatron:"Metatron's Cube", waterrings:'Water Ripples', boidswarm:'Boid Swarm',
+    stringart:'String Art', kaleidofractal:'Kaleido Fractal', crystalgrowth:'Crystal Growth', opalescence:'Opalescence'
   };
 
   function modeTrailAlpha(modeName){
@@ -416,6 +423,24 @@
         return 0.14;
       case 'lightningweb':
         return 0.22;
+      case 'feedbackecho':
+        return 0.02;
+      case 'fractalflame':
+      case 'opalescence':
+        return 0.03;
+      case 'crystalgrowth':
+      case 'infinitemirror':
+        return 0.035;
+      case 'dejong':
+        return 0.04;
+      case 'lorenz':
+        return 0.05;
+      case 'boidswarm':
+        return 0.07;
+      case 'spirograph':
+      case 'waterrings':
+      case 'stringart':
+        return 0.10;
       case 'bars':
       case 'warpgrid':
       case 'maze':
@@ -430,20 +455,40 @@
   let autoCycleBeats = 0;
   let morphEnabled = false;
   let transitioning = false;
-  let transFrom = 0, transTo = 0, transStart = 0, transDuration = 1500;
+  let transFrom = 0, transTo = 0, transStart = 0, transDuration = 1800;
   let transFromCanvas = null, transFromCtx = null, transToCanvas = null, transToCtx = null;
+  // low-res buffers for the pixel-level morph — kept small for performance, upscaled with
+  // bilinear smoothing on the way out (the softness actually helps sell the "liquid" morph)
+  const MORPH_LOW_W = 176;
+  let morphLowH = 100;
+  let morphFromSmall=null, morphFromSmallCtx=null, morphToSmall=null, morphToSmallCtx=null;
+  let morphOutSmall=null, morphOutSmallCtx=null, morphOutImageData=null;
+
   function ensureTransCanvases(){
     if(!transFromCanvas){
       transFromCanvas = document.createElement('canvas');
       transFromCtx = transFromCanvas.getContext('2d');
       transToCanvas = document.createElement('canvas');
       transToCtx = transToCanvas.getContext('2d');
+      morphFromSmall = document.createElement('canvas');
+      morphFromSmallCtx = morphFromSmall.getContext('2d', { willReadFrequently: true });
+      morphToSmall = document.createElement('canvas');
+      morphToSmallCtx = morphToSmall.getContext('2d', { willReadFrequently: true });
+      morphOutSmall = document.createElement('canvas');
+      morphOutSmallCtx = morphOutSmall.getContext('2d');
     }
     transFromCanvas.width = W; transFromCanvas.height = H;
     transToCanvas.width = W; transToCanvas.height = H;
     transFromCtx.fillStyle = '#000'; transFromCtx.fillRect(0,0,W,H);
     transToCtx.fillStyle = '#000'; transToCtx.fillRect(0,0,W,H);
+
+    morphLowH = Math.max(60, Math.round(MORPH_LOW_W * H/W));
+    morphFromSmall.width = MORPH_LOW_W; morphFromSmall.height = morphLowH;
+    morphToSmall.width = MORPH_LOW_W; morphToSmall.height = morphLowH;
+    morphOutSmall.width = MORPH_LOW_W; morphOutSmall.height = morphLowH;
+    morphOutImageData = morphOutSmallCtx.createImageData(MORPH_LOW_W, morphLowH);
   }
+  function clampI(v, max){ return v<0 ? 0 : (v>=max ? max-1 : v); }
 
   function spawnBurst(cx, cy, count, energy){
     for(let i=0;i<count;i++){
@@ -485,7 +530,6 @@
 
     const isBeat = detectBeat(bass, now);
     if(isBeat){
-      spawnBurst(W/2, H/2, 10+Math.floor(bass/8), bass);
       if(autoCycle && !transitioning){
         autoCycleBeats++;
         const cycleEvery = parseInt(document.getElementById('cycleEvery').value, 10);
@@ -528,36 +572,53 @@
       renderMode(MODES[transTo], bass,mid,treble,overall);
       ctx = savedCtx;
 
-      // composite: outgoing visual spins+expands away, incoming visual spins+grows in from small —
-      // this reads as one shape transforming into the next, not a flat dissolve
-      const cx=W/2, cy=H/2;
+      // real pixel morph: downscale both frames, then swirl-warp each around the center in
+      // OPPOSITE directions (peaking mid-transition) while cross-fading color — the two images
+      // visibly braid into each other rather than one simply fading over the other
+      morphFromSmallCtx.drawImage(transFromCanvas, 0,0,W,H, 0,0,MORPH_LOW_W,morphLowH);
+      morphToSmallCtx.drawImage(transToCanvas, 0,0,W,H, 0,0,MORPH_LOW_W,morphLowH);
+      const fromData = morphFromSmallCtx.getImageData(0,0,MORPH_LOW_W,morphLowH).data;
+      const toData = morphToSmallCtx.getImageData(0,0,MORPH_LOW_W,morphLowH).data;
+      const out = morphOutImageData.data;
 
-      ctx.save();
-      ctx.globalAlpha = 1-ease;
-      ctx.translate(cx,cy);
-      ctx.rotate(ease*1.1);
-      const outScale = 1+ease*0.9;
-      ctx.scale(outScale, outScale);
-      ctx.translate(-cx,-cy);
-      ctx.drawImage(transFromCanvas,0,0,W,H);
-      ctx.restore();
+      const mcx = MORPH_LOW_W/2, mcy = morphLowH/2;
+      const maxR = Math.hypot(mcx,mcy);
+      const swirlAmt = Math.sin(ease*Math.PI) * 3.4; // 0 at start/end, peak at the midpoint
 
-      ctx.save();
-      ctx.globalAlpha = ease;
-      ctx.translate(cx,cy);
-      ctx.rotate(-(1-ease)*1.1);
-      const inScale = 0.25+ease*0.75;
-      ctx.scale(inScale, inScale);
-      ctx.translate(-cx,-cy);
-      ctx.drawImage(transToCanvas,0,0,W,H);
-      ctx.restore();
+      for(let py=0; py<morphLowH; py++){
+        const rowBase = py*MORPH_LOW_W;
+        for(let px=0; px<MORPH_LOW_W; px++){
+          const dx = px-mcx, dy = py-mcy;
+          const r = Math.hypot(dx,dy);
+          const ang = Math.atan2(dy,dx);
+          const falloff = 1 - Math.min(1, r/maxR);
+
+          const angFrom = ang + swirlAmt*falloff;
+          const fx = clampI(Math.round(mcx + Math.cos(angFrom)*r), MORPH_LOW_W);
+          const fy = clampI(Math.round(mcy + Math.sin(angFrom)*r), morphLowH);
+
+          const angTo = ang - swirlAmt*falloff;
+          const tx = clampI(Math.round(mcx + Math.cos(angTo)*r), MORPH_LOW_W);
+          const ty = clampI(Math.round(mcy + Math.sin(angTo)*r), morphLowH);
+
+          const fi = (fy*MORPH_LOW_W+fx)*4;
+          const ti = (ty*MORPH_LOW_W+tx)*4;
+          const oi = (rowBase+px)*4;
+
+          out[oi]   = fromData[fi]  *(1-ease) + toData[ti]  *ease;
+          out[oi+1] = fromData[fi+1]*(1-ease) + toData[ti+1]*ease;
+          out[oi+2] = fromData[fi+2]*(1-ease) + toData[ti+2]*ease;
+          out[oi+3] = 255;
+        }
+      }
+      morphOutSmallCtx.putImageData(morphOutImageData,0,0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(morphOutSmall, 0,0,MORPH_LOW_W,morphLowH, 0,0,W,H);
 
       if(t>=1){ transitioning=false; modeIndex=transTo; }
     } else {
       renderMode(MODES[modeIndex], bass,mid,treble,overall);
     }
-
-    drawParticles(dt);
 
     if(beatFlash > 0.03){
       ctx.fillStyle = `rgba(255,255,255,${beatFlash*0.05})`;
@@ -614,6 +675,26 @@
     else if(mode==='dunes') drawDunes(bass, mid, treble, overall);
     else if(mode==='prism') drawPrism(bass, mid, treble, overall);
     else if(mode==='lotus') drawLotus(bass, mid, treble, overall);
+    else if(mode==='feedbackecho') drawFeedbackEcho(bass, mid, treble, overall);
+    else if(mode==='fractalflame') drawFractalFlame(bass, mid, treble, overall);
+    else if(mode==='dejong') drawDeJong(bass, mid, treble, overall);
+    else if(mode==='lorenz') drawLorenz(bass, mid, treble, overall);
+    else if(mode==='phyllotaxis') drawPhyllotaxis(bass, mid, treble, overall);
+    else if(mode==='moire') drawMoire(bass, mid, treble, overall);
+    else if(mode==='spirograph') drawSpirograph(bass, mid, treble, overall);
+    else if(mode==='voronoicells') drawVoronoiCells(bass, mid, treble, overall);
+    else if(mode==='melt') drawMelt(bass, mid, treble, overall);
+    else if(mode==='infinitemirror') drawInfiniteMirror(bass, mid, treble, overall);
+    else if(mode==='tiedye') drawTieDye(bass, mid, treble, overall);
+    else if(mode==='marbling') drawMarbling(bass, mid, treble, overall);
+    else if(mode==='yantra') drawYantra(bass, mid, treble, overall);
+    else if(mode==='metatron') drawMetatron(bass, mid, treble, overall);
+    else if(mode==='waterrings') drawWaterRings(bass, mid, treble, overall);
+    else if(mode==='boidswarm') drawBoidSwarm(bass, mid, treble, overall);
+    else if(mode==='stringart') drawStringArt(bass, mid, treble, overall);
+    else if(mode==='kaleidofractal') drawKaleidoFractal(bass, mid, treble, overall);
+    else if(mode==='crystalgrowth') drawCrystalGrowth(bass, mid, treble, overall);
+    else if(mode==='opalescence') drawOpalescence(bass, mid, treble, overall);
   }
 
   function drawKaleido(bass,mid,treble,overall){
@@ -2094,6 +2175,558 @@
     ctx.beginPath(); ctx.arc(cx,cy,glowR,0,Math.PI*2); ctx.fill();
   }
 
+  // --- Feedback Echo: classic video-feedback tunnel — the canvas continuously folds into itself ---
+  let feedbackCanvas = null, feedbackCtx = null;
+  let feedbackSeeded = false;
+  function drawFeedbackEcho(bass,mid,treble,overall){
+    if(!feedbackCanvas){
+      feedbackCanvas = document.createElement('canvas');
+      feedbackCanvas.width=W; feedbackCanvas.height=H;
+      feedbackCtx = feedbackCanvas.getContext('2d');
+    }
+    if(feedbackCanvas.width!==W || feedbackCanvas.height!==H){
+      feedbackCanvas.width=W; feedbackCanvas.height=H;
+    }
+    const cx=W/2, cy=H/2;
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(0.008+bass*0.00005+beatFlash*0.025);
+    const s = 1.016+beatFlash*0.012;
+    ctx.scale(s,s);
+    ctx.translate(-cx,-cy);
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(feedbackCanvas,0,0,W,H);
+    ctx.restore();
+
+    if(!feedbackSeeded){
+      // instant starting pattern — otherwise this mode needs several seconds to build up from nothing
+      for(let k=0;k<6;k++){
+        ctx.beginPath(); ctx.arc(cx,cy,30+k*22,0,Math.PI*2);
+        ctx.strokeStyle = `hsla(${(hueBase+k*40)%360},90%,65%,0.6)`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      feedbackSeeded = true;
+    }
+
+    const sides = 5+Math.floor(bass/60);
+    const r = 26+beatFlash*24;
+    ctx.beginPath();
+    for(let i=0;i<=sides;i++){
+      const ang=(Math.PI*2/sides)*i + rotation*2;
+      const x=cx+Math.cos(ang)*r, y=cy+Math.sin(ang)*r;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    grad.addColorStop(0, `hsla(${hueBase%360},95%,70%,0.6)`);
+    grad.addColorStop(1, `hsla(${hueBase%360},95%,70%,0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = `hsla(${hueBase%360},90%,65%,0.85)`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    feedbackCtx.clearRect(0,0,W,H);
+    feedbackCtx.drawImage(ctx.canvas,0,0,W,H);
+  }
+
+  // --- Fractal Flame: an iterated-function-system "chaos game" building a glowing fractal over time ---
+  let flameState = null;
+  function drawFractalFlame(bass,mid,treble,overall){
+    if(!flameState) flameState = { x:0.1, y:0.1, hue:Math.random()*360 };
+    const cx=W/2, cy=H/2;
+    const scale = Math.min(W,H)*0.42;
+    const t = performance.now()*0.00007;
+    const variants = [
+      (x,y)=>[0.5*x - 0.3*Math.sin(t)*y, 0.3*Math.sin(t)*x + 0.5*y + 0.3],
+      (x,y)=>[0.5*x + 0.3*Math.cos(t)*y - 0.2, -0.3*y + 0.1*x],
+      (x,y)=>[-0.5*y + 0.15, 0.5*x + 0.15*Math.sin(t*2)],
+      (x,y)=>[0.5*x*Math.cos(1.3) - 0.5*y*Math.sin(1.3), 0.5*x*Math.sin(1.3)+0.5*y*Math.cos(1.3)]
+    ];
+    const iters = 2200 + Math.floor(overall*4);
+    let {x,y,hue} = flameState;
+    for(let i=0;i<iters;i++){
+      const idx = Math.floor(Math.random()*variants.length);
+      const [nx,ny] = variants[idx](x,y);
+      x=nx; y=ny;
+      hue = hue*0.995 + (idx*90+hueBase)*0.005;
+      if(i>15){
+        const px = cx + x*scale, py = cy + y*scale;
+        ctx.fillStyle = `hsla(${hue%360},85%,${55+beatFlash*15}%,0.5)`;
+        ctx.fillRect(px,py,1.1,1.1);
+      }
+    }
+    flameState = {x,y,hue};
+  }
+
+  // --- De Jong Attractor: a strange attractor whose shape itself dances with the audio ---
+  let dejongState = { x:0.1, y:0.1 };
+  function drawDeJong(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const scale = Math.min(W,H)*0.22;
+    const a = -2 + (bass/255)*4;
+    const b = -0.5 + (mid/255)*4;
+    const c = -0.5 + Math.sin(rotation)*1.5;
+    const d = -1.5 + (treble/255)*3;
+    let {x,y} = dejongState;
+    const iters = 900;
+    for(let i=0;i<iters;i++){
+      const nx = Math.sin(a*y) - Math.cos(b*x);
+      const ny = Math.sin(c*x) - Math.cos(d*y);
+      x=nx; y=ny;
+      const px = cx + x*scale, py = cy + y*scale;
+      const hue = (hueBase + i*0.3)%360;
+      ctx.fillStyle = `hsla(${hue},85%,65%,0.4)`;
+      ctx.fillRect(px,py,1,1);
+    }
+    dejongState = {x,y};
+  }
+
+  // --- Lorenz Attractor: the classic chaos-theory "butterfly", traced continuously in 3D ---
+  let lorenzState = { x:0.1, y:0, z:0 };
+  function drawLorenz(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2-40;
+    const scale = Math.min(W,H)*0.011; // was 10x too large — attractor was drawing off-canvas
+    const sigma=10, rho=24+bass*0.02, beta=8/3;
+    const dt2=0.006;
+    let {x,y,z} = lorenzState;
+    const ang = rotation*1.2;
+    ctx.beginPath();
+    let first=true;
+    for(let i=0;i<12;i++){
+      const dx = sigma*(y-x)*dt2, dy=(x*(rho-z)-y)*dt2, dz=(x*y-beta*z)*dt2;
+      x+=dx; y+=dy; z+=dz;
+      const zc = z - rho; // z ranges roughly 0..50, not centered on zero — recenter before projecting
+      const rx = x*Math.cos(ang) - zc*Math.sin(ang);
+      const rz = x*Math.sin(ang) + zc*Math.cos(ang);
+      const px = cx+rx*scale, py = cy+y*scale*0.9 - rz*scale*0.4;
+      if(first){ ctx.moveTo(px,py); first=false; } else ctx.lineTo(px,py);
+    }
+    const hue=(hueBase+z*4)%360;
+    ctx.strokeStyle = `hsla(${hue},85%,65%,0.7)`;
+    ctx.lineWidth = 1.6+beatFlash*1.8;
+    ctx.stroke();
+    lorenzState = {x,y,z};
+  }
+
+  // --- Phyllotaxis Spiral: the golden-angle seed pattern found in sunflowers, slowly growing ---
+  let phyllotaxisSeeds = 0;
+  function drawPhyllotaxis(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const golden = Math.PI*(3-Math.sqrt(5));
+    const maxSeeds = 500;
+    phyllotaxisSeeds = (phyllotaxisSeeds + 1 + Math.floor(overall*0.05)) % maxSeeds;
+    const c = 4.2 + bass*0.02;
+    for(let i=0;i<phyllotaxisSeeds;i++){
+      const ang = i*golden;
+      const r = c*Math.sqrt(i);
+      const x = cx+Math.cos(ang+rotation*0.2)*r, y=cy+Math.sin(ang+rotation*0.2)*r;
+      const hue = (hueBase + i*0.6)%360;
+      ctx.fillStyle = `hsla(${hue},80%,62%,0.8)`;
+      ctx.beginPath(); ctx.arc(x,y,2+beatFlash*2,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Moiré Rings: two ring-sets drifting apart, producing a shimmering interference pattern ---
+  function drawMoire(bass,mid,treble,overall){
+    const cx1=W/2-40-bass*0.3, cy1=H/2;
+    const cx2=W/2+40+bass*0.3, cy2=H/2;
+    for(let i=0;i<26;i++){
+      const r=(i+1)*14;
+      ctx.beginPath(); ctx.arc(cx1,cy1,r,0,Math.PI*2);
+      ctx.strokeStyle = `hsla(${hueBase%360},70%,60%,0.25)`;
+      ctx.lineWidth=1.2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx2,cy2,r,0,Math.PI*2);
+      ctx.strokeStyle = `hsla(${(hueBase+120)%360},70%,60%,0.25)`;
+      ctx.stroke();
+    }
+  }
+
+  // --- Spirograph: a classic hypotrochoid curve traced continuously, shape drifting with the music ---
+  let spiroT = 0, spiroPts = [];
+  function drawSpirograph(bass,mid,treble,overall){
+    spiroT += 0.02+overall*0.0005;
+    const R=Math.min(W,H)*0.28, r=40+bass*0.3, d=60+mid*0.3;
+    const cx=W/2, cy=H/2;
+    for(let s=0;s<6;s++){
+      const t = spiroT + s*0.01;
+      const x = cx + (R-r)*Math.cos(t) + d*Math.cos((R-r)/r*t);
+      const y = cy + (R-r)*Math.sin(t) - d*Math.sin((R-r)/r*t);
+      spiroPts.push({x,y,hue:hueBase});
+    }
+    if(spiroPts.length>2000) spiroPts.splice(0, spiroPts.length-2000);
+    for(const p of spiroPts){
+      ctx.fillStyle = `hsla(${p.hue%360},85%,65%,0.5)`;
+      ctx.fillRect(p.x,p.y,1.4,1.4);
+    }
+  }
+
+  // --- Voronoi Cells: living cell regions that drift and occasionally divide on a big beat ---
+  let voronoiSeeds = null, voronoiBuf = null;
+  function ensureVoronoi(){
+    if(voronoiSeeds) return;
+    voronoiSeeds = [];
+    for(let i=0;i<10;i++) voronoiSeeds.push({ x:Math.random(), y:Math.random(), vx:(Math.random()-0.5)*0.002, vy:(Math.random()-0.5)*0.002, hue:Math.random()*360 });
+    const w=100,h=60;
+    const off = document.createElement('canvas'); off.width=w; off.height=h;
+    voronoiBuf = { w,h,off,offCtx:off.getContext('2d') };
+  }
+  function drawVoronoiCells(bass,mid,treble,overall){
+    ensureVoronoi();
+    for(const s of voronoiSeeds){
+      s.x += s.vx*(1+overall*0.02); s.y += s.vy*(1+overall*0.02);
+      if(s.x<0||s.x>1) s.vx*=-1;
+      if(s.y<0||s.y>1) s.vy*=-1;
+    }
+    if(beatFlash>0.9 && voronoiSeeds.length<22 && Math.random()<0.3){
+      const parent = voronoiSeeds[Math.floor(Math.random()*voronoiSeeds.length)];
+      voronoiSeeds.push({ x:parent.x, y:parent.y, vx:(Math.random()-0.5)*0.003, vy:(Math.random()-0.5)*0.003, hue:parent.hue+40 });
+    }
+    const { w,h,off,offCtx } = voronoiBuf;
+    const img = offCtx.createImageData(w,h);
+    for(let py=0;py<h;py++){
+      for(let px=0;px<w;px++){
+        const nx=px/w, ny=py/h;
+        let best=1e9, bi=0;
+        for(let i=0;i<voronoiSeeds.length;i++){
+          const s=voronoiSeeds[i];
+          const dd=(s.x-nx)*(s.x-nx)+(s.y-ny)*(s.y-ny);
+          if(dd<best){ best=dd; bi=i; }
+        }
+        const hue=(hueBase+voronoiSeeds[bi].hue)%360;
+        const [r,g,b] = hslToRgb(((hue%360)+360)%360/360, 0.65, Math.max(0.12,Math.min(0.55,0.16+Math.sqrt(best)*0.8)));
+        const idx=(py*w+px)*4;
+        img.data[idx]=r; img.data[idx+1]=g; img.data[idx+2]=b; img.data[idx+3]=255;
+      }
+    }
+    offCtx.putImageData(img,0,0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off,0,0,w,h,0,0,W,H);
+  }
+
+  // --- Melting Drip: soft Dali-esque blobs slowly drooping and dripping downward ---
+  let meltBlobs = null;
+  function drawMelt(bass,mid,treble,overall){
+    if(!meltBlobs){
+      meltBlobs = [];
+      for(let i=0;i<5;i++) meltBlobs.push({ x:(i+0.5)*(W/5), y:H*0.25+Math.random()*80, r:50+Math.random()*40, hue:Math.random()*360, drip:0 });
+    }
+    for(const b of meltBlobs){
+      b.drip += 0.3+overall*0.01+beatFlash*1.5;
+      const dripLen = 60+b.drip*0.5;
+      ctx.beginPath();
+      ctx.moveTo(b.x-b.r, b.y);
+      ctx.quadraticCurveTo(b.x-b.r, b.y+dripLen*0.6, b.x-b.r*0.3, b.y+dripLen);
+      ctx.quadraticCurveTo(b.x, b.y+dripLen*1.1, b.x+b.r*0.3, b.y+dripLen);
+      ctx.quadraticCurveTo(b.x+b.r, b.y+dripLen*0.6, b.x+b.r, b.y);
+      ctx.arc(b.x,b.y,b.r,0,Math.PI,true);
+      ctx.closePath();
+      const hue=(hueBase+b.hue)%360;
+      const grad = ctx.createLinearGradient(b.x,b.y-b.r,b.x,b.y+dripLen);
+      grad.addColorStop(0, `hsla(${hue},75%,60%,0.5)`);
+      grad.addColorStop(1, `hsla(${hue},75%,60%,0.05)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      if(b.drip>250){ b.drip=0; b.y=H*0.2+Math.random()*60; b.hue=Math.random()*360; }
+    }
+  }
+
+  // --- Infinite Mirror: a genuine recursive hall-of-mirrors, built from real image feedback ---
+  let mirrorBuf = null;
+  function drawInfiniteMirror(bass,mid,treble,overall){
+    if(!mirrorBuf){ mirrorBuf = document.createElement('canvas'); mirrorBuf.width=W; mirrorBuf.height=H; }
+    if(mirrorBuf.width!==W || mirrorBuf.height!==H){ mirrorBuf.width=W; mirrorBuf.height=H; }
+    const mctx = mirrorBuf.getContext('2d');
+    mctx.clearRect(0,0,W,H);
+    mctx.drawImage(ctx.canvas,0,0,W,H);
+    const cx=W/2, cy=H/2;
+    const inset = 60+Math.sin(rotation)*10;
+    const w2=Math.max(10,W-inset*2), h2=Math.max(10,H-inset*2);
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(0.01+beatFlash*0.03);
+    ctx.translate(-cx,-cy);
+    ctx.drawImage(mirrorBuf, inset,inset,w2,h2);
+    ctx.restore();
+    ctx.strokeStyle = `hsla(${hueBase%360},70%,60%,0.8)`;
+    ctx.lineWidth = 6+beatFlash*4;
+    ctx.strokeRect(inset,inset,w2,h2);
+  }
+
+  // --- Tie-Dye Swirl: rainbow rings twisted into a spiral, like fabric dye ---
+  function drawTieDye(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const maxR = Math.hypot(W,H)/2;
+    const twist = 2.5+Math.sin(rotation)*1.5;
+    for(let r=4;r<maxR;r+=6){
+      const bands=24;
+      ctx.beginPath();
+      for(let i=0;i<=bands;i++){
+        const ang=(Math.PI*2/bands)*i;
+        const rr = r + Math.sin(ang*5+r*0.02+performance.now()*0.0003)*4;
+        const x=cx+Math.cos(ang)*rr, y=cy+Math.sin(ang)*rr;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      const hue=(hueBase + r*twist*0.3 + treble*0.3)%360;
+      ctx.strokeStyle = `hsla(${hue},85%,60%,0.4)`;
+      ctx.lineWidth = 5.4;
+      ctx.stroke();
+    }
+  }
+
+  // --- Ink Marbling: concentric rings dragged by drifting "combs", like Suminagashi paper marbling ---
+  let marbleCombs = null;
+  function drawMarbling(bass,mid,treble,overall){
+    if(!marbleCombs){
+      marbleCombs = [];
+      for(let i=0;i<3;i++) marbleCombs.push({ ang:Math.random()*Math.PI*2, speed:0.5+Math.random()*0.5, x:0, y:0 });
+    }
+    const cx=W/2, cy=H/2;
+    for(const comb of marbleCombs){
+      comb.ang += 0.01;
+      comb.x = cx + Math.cos(comb.ang*comb.speed)*W*0.3;
+      comb.y = cy + Math.sin(comb.ang*comb.speed*1.3)*H*0.3;
+    }
+    for(let i=0;i<20;i++){
+      const baseR = 20+i*14;
+      ctx.beginPath();
+      const segs=48;
+      for(let s=0;s<=segs;s++){
+        const ang=(Math.PI*2/segs)*s;
+        let x=cx+Math.cos(ang)*baseR, y=cy+Math.sin(ang)*baseR;
+        for(const comb of marbleCombs){
+          const dx=x-comb.x, dy=y-comb.y;
+          const dist=Math.hypot(dx,dy);
+          const pull = Math.max(0, 1 - dist/120)*20;
+          x += (dx/(dist||1))*pull*0.3;
+          y += (dy/(dist||1))*pull*0.3;
+        }
+        if(s===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      const hue=(hueBase+i*15)%360;
+      ctx.strokeStyle = `hsla(${hue},75%,60%,0.35)`;
+      ctx.lineWidth=2;
+      ctx.stroke();
+    }
+  }
+
+  // --- Yantra Geometry: breathing interlocking sacred triangles ---
+  function drawYantra(bass,mid,treble,overall){
+    const cx=W/2, cy=H/2;
+    const breathe = 0.8+0.2*Math.sin(performance.now()*0.0008)+beatFlash*0.2;
+    const size = Math.min(W,H)*0.35*breathe;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rotation*0.2);
+    for(let i=0;i<5;i++){
+      const s = size*(1-i*0.15);
+      drawTri(s, true, (hueBase+i*20)%360);
+      drawTri(s*0.85, false, (hueBase+180+i*20)%360);
+    }
+    ctx.restore();
+    function drawTri(s, up, hue){
+      ctx.beginPath();
+      const dir = up?1:-1;
+      ctx.moveTo(0, -s*dir*0.6);
+      ctx.lineTo(-s*0.55, s*dir*0.4);
+      ctx.lineTo(s*0.55, s*dir*0.4);
+      ctx.closePath();
+      ctx.strokeStyle = `hsla(${hue},80%,65%,0.5)`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  // --- Metatron's Cube: 13 sacred-geometry points fully interconnected, slowly rotating ---
+  let metatronPts = null;
+  function drawMetatron(bass,mid,treble,overall){
+    if(!metatronPts){
+      metatronPts = [{x:0,y:0}];
+      for(let ring=0; ring<2; ring++){
+        const count=6, rad=(ring+1)*70;
+        for(let i=0;i<count;i++){
+          const ang=(Math.PI*2/count)*i + (ring*Math.PI/6);
+          metatronPts.push({ x:Math.cos(ang)*rad, y:Math.sin(ang)*rad });
+        }
+      }
+    }
+    const cx=W/2, cy=H/2;
+    const scale = 0.9+Math.sin(performance.now()*0.0005)*0.05+beatFlash*0.1;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rotation*0.3); ctx.scale(scale,scale);
+    for(let i=0;i<metatronPts.length;i++){
+      for(let j=i+1;j<metatronPts.length;j++){
+        const a=metatronPts[i], b=metatronPts[j];
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+        const hue=(hueBase + i*10+j*5)%360;
+        ctx.strokeStyle = `hsla(${hue},75%,60%,0.18)`;
+        ctx.lineWidth=1;
+        ctx.stroke();
+      }
+    }
+    for(const p of metatronPts){
+      ctx.beginPath(); ctx.arc(p.x,p.y,6,0,Math.PI*2);
+      ctx.fillStyle = `hsla(${hueBase%360},85%,70%,0.7)`;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Water Ripples: rain-on-a-pond rings that overlap and interfere ---
+  let waterDrops = [];
+  function drawWaterRings(bass,mid,treble,overall){
+    if(Math.random() < 0.02+bass*0.0006){
+      waterDrops.push({ x:Math.random()*W, y:Math.random()*H, r:2, hue:hueBase+Math.random()*80 });
+    }
+    for(let i=waterDrops.length-1;i>=0;i--){
+      const d = waterDrops[i];
+      d.r += 1.5+overall*0.01;
+      const alpha = Math.max(0, 1-d.r/260);
+      if(alpha<=0){ waterDrops.splice(i,1); continue; }
+      ctx.strokeStyle = `hsla(${d.hue%360},70%,70%,${alpha*0.5})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2); ctx.stroke();
+    }
+    if(waterDrops.length>60) waterDrops.splice(0, waterDrops.length-60);
+  }
+
+  // --- Boid Swarm: a flock of glowing particles with real separation/alignment/cohesion behavior ---
+  let boids = null;
+  function drawBoidSwarm(bass,mid,treble,overall){
+    if(!boids){
+      boids = [];
+      for(let i=0;i<60;i++) boids.push({ x:Math.random()*W, y:Math.random()*H, vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2 });
+    }
+    const cx=W/2, cy=H/2;
+    for(const b of boids){
+      let ax=0,ay=0,cxAvg=0,cyAvg=0,sepX=0,sepY=0,count=0;
+      for(const o of boids){
+        if(o===b) continue;
+        const dx=o.x-b.x, dy=o.y-b.y, d=Math.hypot(dx,dy)||1;
+        if(d<60){
+          cxAvg+=o.x; cyAvg+=o.y; count++;
+          ax+=o.vx; ay+=o.vy;
+          if(d<20){ sepX -= dx/d; sepY -= dy/d; }
+        }
+      }
+      if(count>0){
+        cxAvg/=count; cyAvg/=count;
+        b.vx += (cxAvg-b.x)*0.0005 + (ax/count-b.vx)*0.02 + sepX*0.05;
+        b.vy += (cyAvg-b.y)*0.0005 + (ay/count-b.vy)*0.02 + sepY*0.05;
+      }
+      b.vx += (cx-b.x)*0.00008; b.vy += (cy-b.y)*0.00008;
+      const speed = Math.hypot(b.vx,b.vy);
+      const maxSpeed = 2+overall*0.02+beatFlash*3;
+      if(speed>maxSpeed){ b.vx=b.vx/speed*maxSpeed; b.vy=b.vy/speed*maxSpeed; }
+      b.x+=b.vx; b.y+=b.vy;
+      const hue = (hueBase + Math.atan2(b.vy,b.vx)*40)%360;
+      ctx.fillStyle = `hsla(${hue},85%,65%,0.8)`;
+      ctx.beginPath(); ctx.arc(b.x,b.y,2.4,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- String Art: a mod-multiplication chord pattern that continuously evolves through new curves ---
+  let stringArtT = 0;
+  function drawStringArt(bass,mid,treble,overall){
+    stringArtT += 0.002+overall*0.00003;
+    const cx=W/2, cy=H/2;
+    const R = Math.min(W,H)*0.4;
+    const points = 140;
+    const m = 2 + (stringArtT%20);
+    ctx.beginPath();
+    for(let i=0;i<points;i++){
+      const ang1=(Math.PI*2/points)*i;
+      const j=Math.floor(i*m)%points;
+      const ang2=(Math.PI*2/points)*j;
+      const x1=cx+Math.cos(ang1)*R, y1=cy+Math.sin(ang1)*R;
+      const x2=cx+Math.cos(ang2)*R, y2=cy+Math.sin(ang2)*R;
+      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    }
+    ctx.strokeStyle = `hsla(${hueBase%360},80%,65%,0.12)`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // --- Kaleido Fractal: a filled, textured fractal-noise kaleidoscope (not just outlines) ---
+  let kfBuf = null;
+  function ensureKF(){
+    if(kfBuf) return;
+    const w=140,h=90;
+    const off = document.createElement('canvas'); off.width=w; off.height=h;
+    kfBuf = { w,h,off,offCtx:off.getContext('2d') };
+  }
+  function drawKaleidoFractal(bass,mid,treble,overall){
+    ensureKF();
+    const { w,h,off,offCtx } = kfBuf;
+    const img = offCtx.createImageData(w,h);
+    const cx=w/2, cy=h/2;
+    const wedges = 6 + Math.floor(bass/60);
+    const wedgeAng = Math.PI*2/wedges;
+    const t = performance.now()*0.00025;
+    for(let py=0;py<h;py++){
+      for(let px=0;px<w;px++){
+        const dx=px-cx, dy=py-cy;
+        let ang=Math.atan2(dy,dx), r=Math.hypot(dx,dy);
+        ang = ang % wedgeAng;
+        if(ang<0) ang+=wedgeAng;
+        if(ang>wedgeAng/2) ang = wedgeAng-ang;
+        const sx = Math.cos(ang)*r, sy=Math.sin(ang)*r;
+        const n = noise2(sx*0.09, sy*0.09, t) + noise2(sx*0.2+10,sy*0.2+10,t*1.4)*0.5;
+        const hue = (((hueBase + n*160 + r*2)%360)+360)%360;
+        const light = Math.max(0.1,Math.min(0.8, 0.35+0.25*n));
+        const idx=(py*w+px)*4;
+        const [r8,g8,b8] = hslToRgb(hue/360, 0.75, light);
+        img.data[idx]=r8; img.data[idx+1]=g8; img.data[idx+2]=b8; img.data[idx+3]=255;
+      }
+    }
+    offCtx.putImageData(img,0,0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.save();
+    ctx.translate(W/2,H/2); ctx.rotate(rotation*0.5); ctx.translate(-W/2,-H/2);
+    ctx.drawImage(off,0,0,w,h,0,0,W,H);
+    ctx.restore();
+  }
+
+  // --- Crystal Growth: branching ice-crystal-like growth spreading from a seed, then resetting ---
+  let crystalBranches = null;
+  function drawCrystalGrowth(bass,mid,treble,overall){
+    if(!crystalBranches || Math.random()<0.0015){
+      crystalBranches = [];
+      const seedCount = 8;
+      for(let i=0;i<seedCount;i++){
+        crystalBranches.push({ x:W/2, y:H/2, ang:(Math.PI*2/seedCount)*i, len:0, maxLen:60+Math.random()*40, hue:hueBase+i*20 });
+      }
+    }
+    const newBranches = [];
+    for(const b of crystalBranches){
+      if(b.len>=b.maxLen) continue;
+      const grow = 2.2+beatFlash*3.5;
+      const x2=b.x+Math.cos(b.ang)*grow, y2=b.y+Math.sin(b.ang)*grow;
+      ctx.strokeStyle = `hsla(${b.hue%360},70%,70%,0.6)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(x2,y2); ctx.stroke();
+      b.x=x2; b.y=y2; b.len+=grow;
+      if(Math.random()<0.06 && crystalBranches.length<200){
+        newBranches.push({ x:b.x, y:b.y, ang:b.ang+(Math.random()<0.5?1:-1)*Math.PI/3, len:0, maxLen:25+Math.random()*35, hue:b.hue+20 });
+      }
+      if(b.x<0||b.x>W||b.y<0||b.y>H) b.len=b.maxLen;
+    }
+    crystalBranches.push(...newBranches);
+    if(crystalBranches.length>240) crystalBranches = crystalBranches.slice(-240);
+  }
+
+  // --- Opalescence: a slow iridescent oil-slick color wash across the whole screen ---
+  function drawOpalescence(bass,mid,treble,overall){
+    const t = performance.now()*0.0002;
+    const cellSize = 26;
+    for(let y=0;y<H;y+=cellSize){
+      for(let x=0;x<W;x+=cellSize){
+        const n = noise2(x*0.01,y*0.01,t) + noise2(x*0.03+50,y*0.03+50,t*1.7)*0.5;
+        const hue = (((hueBase + n*200 + (x+y)*0.05)%360)+360)%360;
+        const light = Math.max(20,Math.min(70, 45+n*20+beatFlash*10));
+        ctx.fillStyle = `hsla(${hue},70%,${light}%,0.32)`;
+        ctx.fillRect(x,y,cellSize+1,cellSize+1);
+      }
+    }
+  }
+
   function drawParticles(dt){
     ctx.save();
     for(let i=particles.length-1;i>=0;i--){
@@ -2142,7 +2775,7 @@
   function startTransition(nextIdx){
     if(morphEnabled && !transitioning){
       transFrom = modeIndex; transTo = nextIdx;
-      transStart = performance.now(); transDuration = 1500;
+      transStart = performance.now(); transDuration = 1800;
       ensureTransCanvases();
       transitioning = true;
     } else if(!transitioning){
@@ -2292,6 +2925,14 @@
     } else {
       lastTapTime = now; lastTapX = e.clientX;
     }
+  });
+
+  // left/right arrow keys step back/forward a visual (ignored while a settings control has focus)
+  window.addEventListener('keydown', (e)=>{
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag==='INPUT' || tag==='SELECT' || tag==='TEXTAREA') return;
+    if(e.key==='ArrowLeft'){ prevMode(); e.preventDefault(); }
+    else if(e.key==='ArrowRight'){ nextMode(); e.preventDefault(); }
   });
 
   document.getElementById('versionBadge').textContent = APP_VERSION;
