@@ -143,6 +143,7 @@
   #settingsPanel.open{display:flex;}
   .settingRow{display:flex; flex-direction:column; gap:5px;}
   .settingRow label{font-size:9px; color:var(--hud-fg-dim); letter-spacing:0.06em; text-transform:uppercase;}
+  .settingRow .settingDesc{font-size:10px; color:var(--hud-fg-dim); letter-spacing:0; text-transform:none; opacity:0.75; margin-top:-2px;}
   .settingRow input[type=range]{width:100%; accent-color:var(--accent);}
 
   #modeBadge{
@@ -211,26 +212,30 @@
   <div class="hudBottom">
     <div id="settingsPanel">
       <div class="settingRow">
-        <label>SENSITIVITY</label>
-        <input type="range" id="sens" min="0.5" max="2.5" step="0.05" value="1.2">
+        <label>Sensitivity</label>
+        <div class="settingDesc">How easily a beat triggers a reaction. Lower = picks up quieter sounds (better for phone mics). Higher = only reacts to strong, clear beats.</div>
+        <input type="range" id="sens" min="0.5" max="2.5" step="0.05" value="0.5">
       </div>
       <div class="settingRow">
-        <label>AUTO-CYCLE SPEED (beats per change)</label>
+        <label>Auto-Cycle Speed</label>
+        <div class="settingDesc">How many beats play before AUTO switches to the next visualization. Lower = changes faster.</div>
         <input type="range" id="cycleEvery" min="4" max="48" step="2" value="16">
       </div>
       <div class="settingRow">
-        <label>RANDOMNESS (chance of a wild jump vs. next in line)</label>
-        <input type="range" id="chaos" min="0" max="1" step="0.05" value="0.25">
+        <label>Randomness</label>
+        <div class="settingDesc">When AUTO switches visuals, this is the odds it jumps to a random one instead of just the next one in line. 0 = always in order, 1 = always random.</div>
+        <input type="range" id="chaos" min="0" max="1" step="0.05" value="0.7">
       </div>
       <div class="settingRow">
-        <label>VISUALIZATIONS (unchecked = hidden from auto & manual)</label>
+        <label>Visualizations</label>
+        <div class="settingDesc">Uncheck anything you don't want to see — it'll be skipped by both AUTO and the MODE button.</div>
         <div id="modeCheckboxes"></div>
       </div>
     </div>
     <div class="controls">
       <button class="ctlBtn" id="modeBtn" title="Next visual">MODE ▸</button>
-      <button class="ctlBtn" id="autoBtn" title="Auto-cycle modes">AUTO</button>
-      <button class="ctlBtn" id="morphBtn" title="Morph/crossfade between visuals">MORPH</button>
+      <button class="ctlBtn active" id="autoBtn" title="Auto-cycle modes">AUTO</button>
+      <button class="ctlBtn active" id="morphBtn" title="Morph/crossfade between visuals">MORPH</button>
       <button class="ctlBtn" id="settingsBtn" title="Settings">⚙</button>
       <button class="ctlBtn" id="fsBtn" title="Fullscreen">⛶</button>
     </div>
@@ -253,7 +258,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v2.1";
+  const APP_VERSION = "v2.2";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -529,9 +534,9 @@
     }
   }
   let modeIndex = 0;
-  let autoCycle = false;
+  let autoCycle = true;
   let autoCycleBeats = 0;
-  let morphEnabled = false;
+  let morphEnabled = true;
   let transitioning = false;
   let transFrom = 0, transTo = 0, transStart = 0, transDuration = 1800;
   let transFromCanvas = null, transFromCtx = null, transToCanvas = null, transToCtx = null;
