@@ -253,7 +253,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v2.0";
+  const APP_VERSION = "v2.1";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -698,10 +698,6 @@
       renderMode(MODES[modeIndex], bass,mid,treble,overall);
     }
 
-    if(beatFlash > 0.03){
-      ctx.fillStyle = `rgba(255,255,255,${beatFlash*0.05})`;
-      ctx.fillRect(0,0,W,H);
-    }
   }
 
   function renderMode(mode, bass,mid,treble,overall){
