@@ -91,10 +91,12 @@
 
   /* HUD overlay while running */
   #hud{
-    position:fixed; inset:0; z-index:20; pointer-events:none;
+    position:fixed; top:0; left:0; z-index:20; pointer-events:none;
+    width:100%; height:100dvh;
     display:flex; flex-direction:column; justify-content:space-between;
     padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
     opacity:1; transition:opacity .5s ease;
+    box-sizing:border-box;
   }
   #hud.dim{opacity:0;}
 
@@ -192,7 +194,11 @@
     .badge{font-size:10px; padding:6px 9px;}
   }
   @media (max-height: 500px){
-    #settingsPanel{ max-height: 84vh; }
+    #settingsPanel{ max-height: 78dvh; }
+    .controls{ padding:5px; gap:5px; }
+    .ctlBtn{ padding:8px 10px; min-height:36px; font-size:11px; }
+    .settingRow, .badge{ padding:5px 8px; }
+    .hudTop{ padding-bottom:2px; }
   }
 </style>
 </head>
@@ -224,7 +230,7 @@
       <div class="settingRow">
         <label>Randomness</label>
         <div class="settingDesc">When AUTO switches visuals, this is the odds it jumps to a random one instead of just the next one in line. 0 = always in order, 1 = always random.</div>
-        <input type="range" id="chaos" min="0" max="1" step="0.05" value="0.7">
+        <input type="range" id="chaos" min="0" max="1" step="0.05" value="0">
       </div>
       <div class="settingRow">
         <label>Visualizations</label>
@@ -258,7 +264,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v2.3";
+  const APP_VERSION = "v2.4";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -273,6 +279,27 @@
   }
   window.addEventListener('resize', resize);
   resize();
+
+  // Keep the HUD (and its buttons) sized to the TRUE visible viewport, not just the layout
+  // viewport — on mobile, especially in landscape, browser toolbars can make these differ,
+  // which otherwise pushes the bottom controls below the tappable area.
+  function syncHudViewport(){
+    const hud = document.getElementById('hud');
+    if(!hud) return;
+    if(window.visualViewport){
+      hud.style.height = window.visualViewport.height + 'px';
+      hud.style.top = window.visualViewport.offsetTop + 'px';
+    } else {
+      hud.style.height = window.innerHeight + 'px';
+      hud.style.top = '0px';
+    }
+  }
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', syncHudViewport);
+    window.visualViewport.addEventListener('scroll', syncHudViewport);
+  }
+  window.addEventListener('orientationchange', ()=>setTimeout(syncHudViewport, 250));
+  syncHudViewport();
 
   // ---------- audio ----------
   let audioCtx, analyser, sourceNode, audioEl;
