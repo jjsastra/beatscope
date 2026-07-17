@@ -258,7 +258,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v2.2";
+  const APP_VERSION = "v2.3";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -379,7 +379,11 @@
                  'bokehdrift','emberstorm','matrixrain','mercurypool','neuralweb','clockgears','spiralarms','dropletpool',
                  'audiosurf','orbittrails',
                  'retroplumber','swordadventurer','robothero','boxerko','rungunsoldier','whiphunter','armoredbountyhunter',
-                 'phoenixrebirth','dragonbreath','thunderstorm','crystaltitan','portalstorm','samuraislash','krakenrising','celestialchoir','volcaniceruption','titangolem'];
+                 'phoenixrebirth','dragonbreath','thunderstorm','crystaltitan','portalstorm','samuraislash','krakenrising','celestialchoir','volcaniceruption','titangolem',
+                 'dawnwireframegrid','moodshiftclouds','velvetwavebands','fractalflowermandala','emeraldspiraldescent',
+                 'plasmaoverdrivestreak','radialfractalburst','concentricringmandala','mosaictilebloom','kaleidoscopeflowerrise',
+                 'goldenrippleburst','infinitecolorwell','electricmiragerings','vectorwingpulse','fractalmotionwisps',
+                 'afterglowcometwisp','hypercolorresonancecloud'];
 
   const MODE_LABELS = {
     kaleido:'Kaleidoscope', plasma:'Plasma Waves', starfield:'Starfield', bars:'Spectrum Bars',
@@ -416,7 +420,14 @@
     rungunsoldier:'Run & Gun Soldier', whiphunter:'Whip Hunter', armoredbountyhunter:'Bounty Hunter',
     phoenixrebirth:'Phoenix Rebirth', dragonbreath:'Dragon Breath', thunderstorm:'Thunder Storm', crystaltitan:'Crystal Titan',
     portalstorm:'Portal Storm', samuraislash:'Samurai Slash', krakenrising:'Kraken Rising', celestialchoir:'Celestial Choir',
-    volcaniceruption:'Volcanic Eruption', titangolem:'Titan Golem'
+    volcaniceruption:'Volcanic Eruption', titangolem:'Titan Golem',
+    dawnwireframegrid:'Dawn Wireframe Grid', moodshiftclouds:'Mood Shift Clouds', velvetwavebands:'Velvet Wave Bands',
+    fractalflowermandala:'Fractal Flower Mandala', emeraldspiraldescent:'Emerald Spiral Descent',
+    plasmaoverdrivestreak:'Plasma Overdrive Streak', radialfractalburst:'Radial Fractal Burst',
+    concentricringmandala:'Concentric Ring Mandala', mosaictilebloom:'Mosaic Tile Bloom', kaleidoscopeflowerrise:'Kaleidoscope Flower Rise',
+    goldenrippleburst:'Golden Ripple Burst', infinitecolorwell:'Infinite Color Well', electricmiragerings:'Electric Mirage Rings',
+    vectorwingpulse:'Vector Wing Pulse', fractalmotionwisps:'Fractal Motion Wisps',
+    afterglowcometwisp:'Afterglow Comet Wisp', hypercolorresonancecloud:'Hypercolor Resonance Cloud'
   };
 
   function modeTrailAlpha(modeName){
@@ -529,6 +540,28 @@
       case 'pulsarbeams':
       case 'magneticfield':
         return 0.12;
+      case 'moodshiftclouds':
+      case 'velvetwavebands':
+      case 'hypercolorresonancecloud':
+        return 0.03;
+      case 'fractalflowermandala':
+      case 'emeraldspiraldescent':
+      case 'radialfractalburst':
+      case 'concentricringmandala':
+      case 'kaleidoscopeflowerrise':
+        return 0.05;
+      case 'infinitecolorwell':
+      case 'goldenrippleburst':
+      case 'fractalmotionwisps':
+      case 'afterglowcometwisp':
+        return 0.06;
+      case 'plasmaoverdrivestreak':
+      case 'electricmiragerings':
+      case 'vectorwingpulse':
+        return 0.09;
+      case 'dawnwireframegrid':
+      case 'mosaictilebloom':
+        return 0.14;
       default:
         return 0.16;
     }
@@ -841,6 +874,23 @@
     else if(mode==='celestialchoir') drawCelestialChoir(bass, mid, treble, overall);
     else if(mode==='volcaniceruption') drawVolcanicEruption(bass, mid, treble, overall);
     else if(mode==='titangolem') drawTitanGolem(bass, mid, treble, overall);
+    else if(mode==='dawnwireframegrid') drawDawnWireframeGrid(bass, mid, treble, overall);
+    else if(mode==='moodshiftclouds') drawMoodShiftClouds(bass, mid, treble, overall);
+    else if(mode==='velvetwavebands') drawVelvetWaveBands(bass, mid, treble, overall);
+    else if(mode==='fractalflowermandala') drawFractalFlowerMandala(bass, mid, treble, overall);
+    else if(mode==='emeraldspiraldescent') drawEmeraldSpiralDescent(bass, mid, treble, overall);
+    else if(mode==='plasmaoverdrivestreak') drawPlasmaOverdriveStreak(bass, mid, treble, overall);
+    else if(mode==='radialfractalburst') drawRadialFractalBurst(bass, mid, treble, overall);
+    else if(mode==='concentricringmandala') drawConcentricRingMandala(bass, mid, treble, overall);
+    else if(mode==='mosaictilebloom') drawMosaicTileBloom(bass, mid, treble, overall);
+    else if(mode==='kaleidoscopeflowerrise') drawKaleidoscopeFlowerRise(bass, mid, treble, overall);
+    else if(mode==='goldenrippleburst') drawGoldenRippleBurst(bass, mid, treble, overall);
+    else if(mode==='infinitecolorwell') drawInfiniteColorWell(bass, mid, treble, overall);
+    else if(mode==='electricmiragerings') drawElectricMirageRings(bass, mid, treble, overall);
+    else if(mode==='vectorwingpulse') drawVectorWingPulse(bass, mid, treble, overall);
+    else if(mode==='fractalmotionwisps') drawFractalMotionWisps(bass, mid, treble, overall);
+    else if(mode==='afterglowcometwisp') drawAfterglowCometWisp(bass, mid, treble, overall);
+    else if(mode==='hypercolorresonancecloud') drawHypercolorResonanceCloud(bass, mid, treble, overall);
   }
 
   function drawKaleido(bass,mid,treble,overall){
@@ -4276,6 +4326,138 @@
     const cx=W/2,cy=H/2;
     for(const o of orbits){ o.a+=o.sp*(1+overall*0.02)+beatFlash*0.06; const rr=o.r*(1+beatFlash*0.15); const x=cx+Math.cos(o.a)*rr,y=cy+Math.sin(o.a)*rr*0.85; const hue=(hueBase+o.hue)%360; const g=ctx.createRadialGradient(x,y,0,x,y,o.size*3); g.addColorStop(0,`hsla(${hue},95%,70%,0.95)`); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,o.size*3,0,Math.PI*2); ctx.fill(); ctx.fillStyle=`hsla(${hue},100%,85%,0.95)`; ctx.beginPath(); ctx.arc(x,y,o.size,0,Math.PI*2); ctx.fill(); }
     ctx.fillStyle=`hsla(${hueBase%360},90%,85%,0.9)`; ctx.beginPath(); ctx.arc(cx,cy,8+beatFlash*6,0,Math.PI*2); ctx.fill();
+  }
+
+  // ============================================================
+  // High-resolution pack — inspired by a MilkDrop/Winamp preset reel the
+  // user shared, rendered at a bumped-up field resolution (260-280px vs
+  // the usual 120-160) for noticeably crisper detail.
+  // ============================================================
+  // 51. Dawn Wireframe Grid — mirrored glowing perspective grid
+  let wdgT=0;
+  function drawDawnWireframeGrid(bass,mid,treble,overall){
+    wdgT+=0.02+overall*0.0005+beatFlash*0.1; const cx=W/2,cy=H/2;
+    for(let m=0;m<4;m++){ ctx.save(); ctx.translate(cx,cy); ctx.scale(m%2===0?1:-1, m<2?1:-1); ctx.rotate(rotation*0.3);
+      for(let s=0;s<20;s++){ const a=(s/20)*Math.PI*0.5; ctx.strokeStyle=`hsla(${(hueBase+s*8)%360},90%,55%,0.5)`; ctx.lineWidth=1.3; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*W,Math.sin(a)*W); ctx.stroke(); }
+      for(let r=0;r<14;r++){ const t=((r/14)+(wdgT*0.15)%1)%1; const rad=t*t*Math.hypot(W,H)*0.75; ctx.strokeStyle=`hsla(${(hueBase+r*15)%360},95%,60%,${(1-t)*0.6})`; ctx.lineWidth=1+(1-t)*2; ctx.beginPath(); ctx.arc(0,0,rad,0,Math.PI/2); ctx.stroke(); }
+      ctx.restore(); }
+  }
+  // 52. Mood Shift Clouds — slow drifting palette, high-res soft noise
+  let mscT=0, mscPal=0;
+  function drawMoodShiftClouds(bass,mid,treble,overall){
+    mscT+=0.006+overall*0.0002; mscPal+=0.05; const img=mdField(260),d=img.data,fw=_mdW,fh=_mdH;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const n=noise2(x*0.025,y*0.025,mscT)+noise2(x*0.06+30,y*0.06+30,mscT*1.4)*0.5; const hue=(hueBase*0.3+mscPal+n*90)%360; const rgb=hsvToRgb(hue,0.55,Math.max(0.1,Math.min(0.7,0.35+n*0.3+beatFlash*0.1))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 53. Velvet Wave Bands — flowing horizontal color bands
+  let vwbT=0;
+  function drawVelvetWaveBands(bass,mid,treble,overall){
+    vwbT+=0.01+overall*0.0003; const img=mdField(260),d=img.data,fw=_mdW,fh=_mdH;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const n=Math.sin(y*0.08+vwbT*2+Math.sin(x*0.02+vwbT)*2)+Math.sin(y*0.2-vwbT*3)*0.4; const hue=(hueBase+y*1.2+n*40)%360; const rgb=hsvToRgb(hue,0.8,Math.max(0.1,Math.min(0.7,0.4+n*0.25+beatFlash*0.1))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 54. Fractal Flower Mandala — dense many-petaled wedge-mirrored bloom
+  let ffmT=0;
+  function drawFractalFlowerMandala(bass,mid,treble,overall){
+    ffmT+=0.015+overall*0.0004+beatFlash*0.05; const img=mdField(280),d=img.data,fw=_mdW,fh=_mdH,cx=fw/2,cy=fh/2,wedgeAng=Math.PI*2/14;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const dx=x-cx,dy=y-cy; let a=Math.atan2(dy,dx),r=Math.hypot(dx,dy); a=a%wedgeAng; if(a<0)a+=wedgeAng; if(a>wedgeAng/2)a=wedgeAng-a; const sx=Math.cos(a)*r,sy=Math.sin(a)*r; const n=noise2(sx*0.1,sy*0.1,ffmT)+noise2(sx*0.24+20,sy*0.24+20,ffmT*1.3)*0.5; const hue=(hueBase+n*160+r*1.5)%360; const rgb=hsvToRgb(hue,0.85,Math.max(0.08,Math.min(0.8,0.32+n*0.3+beatFlash*0.08))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 55. Emerald Spiral Descent — green spiral tunnel twisting inward
+  let esdT=0;
+  function drawEmeraldSpiralDescent(bass,mid,treble,overall){
+    esdT+=0.02+overall*0.0005+beatFlash*0.1; const img=mdField(260),d=img.data,fw=_mdW,fh=_mdH,cx=fw/2,cy=fh/2;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const dx=x-cx,dy=y-cy,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx); const spiral=a+r*0.05-esdT*2; const n=Math.sin(spiral*3)+Math.sin(r*0.1-esdT*3)*0.5; const hue=(120+hueBase*0.3+n*50)%360; const rgb=hsvToRgb(hue,0.8,Math.max(0.08,Math.min(0.75,0.3+n*0.3+beatFlash*0.1))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 56. Plasma Overdrive Streak — radiant streak burst with a scrolling grid overlay
+  function drawPlasmaOverdriveStreak(bass,mid,treble,overall){
+    const cx=W/2,cy=H/2;
+    for(let i=0;i<50;i++){ const t=i/50,ang=t*Math.PI*2+rotation*0.6,len=Math.hypot(W,H)*0.65*(0.5+0.5*Math.sin(performance.now()*0.002+i)); const hue=(hueBase+t*280)%360; const grad=ctx.createLinearGradient(cx,cy,cx+Math.cos(ang)*len,cy+Math.sin(ang)*len); grad.addColorStop(0,`hsla(${hue},95%,65%,0.5)`); grad.addColorStop(1,`hsla(${hue},95%,65%,0)`); ctx.strokeStyle=grad; ctx.lineWidth=3+beatFlash*3; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(ang)*len,cy+Math.sin(ang)*len); ctx.stroke(); }
+    const gridOff=(performance.now()*0.05)%60; ctx.strokeStyle=`hsla(${hueBase%360},70%,70%,0.15)`; ctx.lineWidth=1;
+    for(let x=-60;x<W+60;x+=60){ ctx.beginPath(); ctx.moveTo(x+gridOff,0); ctx.lineTo(x+gridOff,H); ctx.stroke(); }
+    for(let y=-60;y<H+60;y+=60){ ctx.beginPath(); ctx.moveTo(0,y+gridOff); ctx.lineTo(W,y+gridOff); ctx.stroke(); }
+  }
+  // 57. Radial Fractal Burst — sharp ridged burst radiating from center
+  let rfbT=0;
+  function drawRadialFractalBurst(bass,mid,treble,overall){
+    rfbT+=0.02+overall*0.0005+beatFlash*0.08; const img=mdField(260),d=img.data,fw=_mdW,fh=_mdH,cx=fw/2,cy=fh/2;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const dx=x-cx,dy=y-cy,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx); const n=Math.sin(a*9+rfbT*2)*Math.exp(-r*0.01)+noise2(dx*0.05,dy*0.05,rfbT)*0.4; const hue=(120+hueBase*0.4+n*100+r*1.2)%360; const rgb=hsvToRgb(hue,0.85,Math.max(0.06,Math.min(0.8,0.3+n*0.35+beatFlash*0.1))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 58. Concentric Ring Mandala — fine mirrored rings with radial texture
+  let crmT=0;
+  function drawConcentricRingMandala(bass,mid,treble,overall){
+    crmT+=0.012+overall*0.0003+beatFlash*0.05; const img=mdField(280),d=img.data,fw=_mdW,fh=_mdH,cx=fw/2,cy=fh/2,wedgeAng=Math.PI*2/10;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const dx=x-cx,dy=y-cy; let a=Math.atan2(dy,dx),r=Math.hypot(dx,dy); a=a%wedgeAng; if(a<0)a+=wedgeAng; if(a>wedgeAng/2)a=wedgeAng-a; const ring=Math.sin(r*0.35-crmT*3); const n=ring*0.6+noise2(Math.cos(a)*r*0.08,Math.sin(a)*r*0.08,crmT)*0.4; const hue=(hueBase+n*140+r*0.8)%360; const rgb=hsvToRgb(hue,0.82,Math.max(0.06,Math.min(0.78,0.3+n*0.32+beatFlash*0.1))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 59. Mosaic Tile Bloom — blocky tiles pulsing outward from center
+  function drawMosaicTileBloom(bass,mid,treble,overall){
+    const cx=W/2,cy=H/2,depth=16,bloom=(performance.now()*0.0005+bass*0.001)%1;
+    for(let i=0;i<depth;i++){ const t=((i/depth)+bloom)%1,r=t*Math.hypot(W,H)*0.6,tiles=10+i%4;
+      for(let s=0;s<tiles;s++){ const ang=(Math.PI*2/tiles)*s+rotation*0.4+i*0.1,x=cx+Math.cos(ang)*r,y=cy+Math.sin(ang)*r,size=(1-t)*26+3; const hue=(hueBase+i*22+s*9)%360; ctx.save(); ctx.translate(x,y); ctx.rotate(ang); ctx.fillStyle=`hsla(${hue},85%,58%,${(1-t)*0.75+beatFlash*0.1})`; ctx.fillRect(-size/2,-size/2,size,size); ctx.restore(); } }
+  }
+  // 60. Kaleidoscope Flower Rise — green-toned rising kaleidoscope bloom
+  let kfrT=0;
+  function drawKaleidoscopeFlowerRise(bass,mid,treble,overall){
+    kfrT+=0.014+overall*0.0004+beatFlash*0.06; const img=mdField(260),d=img.data,fw=_mdW,fh=_mdH,cx=fw/2,cy=fh/2,wedgeAng=Math.PI*2/8;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const dx=x-cx,dy=y-cy; let a=Math.atan2(dy,dx),r=Math.hypot(dx,dy); a=a%wedgeAng; if(a<0)a+=wedgeAng; if(a>wedgeAng/2)a=wedgeAng-a; const sx=Math.cos(a)*r,sy=Math.sin(a)*r; const n=noise2(sx*0.09,sy*0.09,kfrT)+noise2(sx*0.2-10,sy*0.2-10,kfrT*1.6)*0.5; const hue=(100+hueBase*0.35+n*130)%360; const rgb=hsvToRgb(hue,0.82,Math.max(0.08,Math.min(0.78,0.32+n*0.3+beatFlash*0.08))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
+  }
+  // 61. Golden Ripple Burst — expanding ripples with radiant gold sparkle rays
+  let grbRipples=[];
+  function drawGoldenRippleBurst(bass,mid,treble,overall){
+    if(beatFlash>0.5 && Math.random()<0.5) grbRipples.push({r:4,hue:hueBase});
+    const cx=W/2,cy=H/2;
+    for(let i=grbRipples.length-1;i>=0;i--){ const rp=grbRipples[i]; rp.r+=5+overall*0.05; const alpha=Math.max(0,1-rp.r/300); if(alpha<=0){ grbRipples.splice(i,1); continue; } ctx.strokeStyle=`hsla(${(rp.hue+160)%360},80%,60%,${alpha*0.6})`; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(cx,cy,rp.r,0,Math.PI*2); ctx.stroke(); }
+    if(grbRipples.length>20) grbRipples.splice(0,grbRipples.length-20);
+    for(let i=0;i<24;i++){ const ang=(Math.PI*2/24)*i+rotation*0.5,len=100+Math.sin(performance.now()*0.003+i)*60+beatFlash*80; const grad=ctx.createLinearGradient(cx,cy,cx+Math.cos(ang)*len,cy+Math.sin(ang)*len); grad.addColorStop(0,'hsla(48,95%,70%,0.6)'); grad.addColorStop(1,'hsla(48,95%,70%,0)'); ctx.strokeStyle=grad; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(ang)*len,cy+Math.sin(ang)*len); ctx.stroke(); }
+  }
+  // 62. Infinite Color Well — veins converging inward into a glowing core
+  let icwVeins=[];
+  function drawInfiniteColorWell(bass,mid,treble,overall){
+    const cx=W/2,cy=H/2;
+    if(Math.random()<0.05+bass*0.001 && icwVeins.length<40){ const ang=Math.random()*Math.PI*2; icwVeins.push({ang,r:Math.hypot(W,H)*0.55,hue:hueBase+Math.random()*60}); }
+    for(let i=icwVeins.length-1;i>=0;i--){ const v=icwVeins[i]; v.r-=3+overall*0.05+beatFlash*4; if(v.r<20){ icwVeins.splice(i,1); continue; } const x1=cx+Math.cos(v.ang)*v.r,y1=cy+Math.sin(v.ang)*v.r,x2=cx+Math.cos(v.ang)*(v.r*0.3),y2=cy+Math.sin(v.ang)*(v.r*0.3); ctx.strokeStyle=`hsla(${v.hue%360},80%,55%,0.5)`; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+    const coreR=24+beatFlash*20; const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR*3); grad.addColorStop(0,`hsla(${(hueBase+160)%360},95%,75%,0.9)`); grad.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(cx,cy,coreR*3,0,Math.PI*2); ctx.fill();
+  }
+  // 63. Electric Mirage Rings — mirrored arched electric ripples
+  function drawElectricMirageRings(bass,mid,treble,overall){
+    const t=performance.now()*0.002,cy=H/2;
+    for(const side of [-1,1]){ const cx=W/2+side*W*0.22;
+      for(let i=0;i<9;i++){ const r=30+i*26+Math.sin(t+i)*8; const hue=(hueBase+i*18)%360; ctx.strokeStyle=`hsla(${hue},90%,60%,${Math.max(0,0.55-i*0.05)+beatFlash*0.2})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,r, side>0?Math.PI*0.5:-Math.PI*0.5, side>0?Math.PI*1.5:Math.PI*0.5); ctx.stroke(); } }
+  }
+  // 64. Vector Wing Pulse — symmetric wing shapes pulsing with the beat
+  function drawVectorWingPulse(bass,mid,treble,overall){
+    const cx=W/2,cy=H/2,pulse=0.7+0.3*Math.sin(performance.now()*0.002)+beatFlash*0.3;
+    for(const side of [-1,1]){ ctx.save(); ctx.translate(cx,cy); ctx.scale(side,1);
+      for(let i=0;i<5;i++){ const s=Math.min(W,H)*0.35*pulse*(1-i*0.15); ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(s*0.5,-s*0.5,s,-s*0.1); ctx.quadraticCurveTo(s*0.5,s*0.1,0,0); const hue=(210+hueBase*0.3+i*20)%360; ctx.fillStyle=`hsla(${hue},80%,60%,0.18)`; ctx.fill(); }
+      ctx.restore(); }
+  }
+  // 65. Fractal Motion Wisps — flowing wispy trails with occasional sparkle dots
+  let fmwParticles=null;
+  function drawFractalMotionWisps(bass,mid,treble,overall){
+    if(!fmwParticles){ fmwParticles=[]; for(let i=0;i<80;i++) fmwParticles.push({x:Math.random()*W,y:Math.random()*H}); }
+    const t=performance.now()*0.0003;
+    for(const p of fmwParticles){ const ang=noise2(p.x*0.005,p.y*0.005,t)*Math.PI*2,speed=0.8+overall*0.015+beatFlash*2; const nx=p.x+Math.cos(ang)*speed,ny=p.y+Math.sin(ang)*speed; ctx.strokeStyle=`hsla(${(hueBase+80)%360},15%,90%,0.35)`; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(nx,ny); ctx.stroke(); p.x=nx; p.y=ny; if(p.x<0||p.x>W||p.y<0||p.y>H){ p.x=Math.random()*W; p.y=Math.random()*H; } if(Math.random()<0.02){ ctx.fillStyle=`hsla(${hueBase%360},60%,90%,0.7)`; ctx.beginPath(); ctx.arc(p.x,p.y,1.5,0,Math.PI*2); ctx.fill(); } }
+  }
+  // 66. Afterglow Comet Wisp — a single sweeping comet with a long glowing tail
+  let acwState={ang:Math.random()*Math.PI*2};
+  function drawAfterglowCometWisp(bass,mid,treble,overall){
+    acwState.ang+=0.006+overall*0.0003+beatFlash*0.02; const cx=W/2,cy=H/2,R=Math.min(W,H)*0.32;
+    const hx=cx+Math.cos(acwState.ang)*R,hy=cy+Math.sin(acwState.ang)*R*0.6,tailLen=140+bass*0.6+beatFlash*80,tailAng=acwState.ang+Math.PI;
+    const grad=ctx.createLinearGradient(hx,hy,hx+Math.cos(tailAng)*tailLen,hy+Math.sin(tailAng)*tailLen*0.6); const hue=(120+hueBase*0.4)%360;
+    grad.addColorStop(0,`hsla(${hue},90%,70%,0.85)`); grad.addColorStop(1,`hsla(${hue},90%,60%,0)`);
+    ctx.strokeStyle=grad; ctx.lineWidth=10+beatFlash*6; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx+Math.cos(tailAng)*tailLen,hy+Math.sin(tailAng)*tailLen*0.6); ctx.stroke();
+    const g2=ctx.createRadialGradient(hx,hy,0,hx,hy,18+beatFlash*10); g2.addColorStop(0,`hsla(${hue},95%,85%,0.9)`); g2.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(hx,hy,18+beatFlash*10,0,Math.PI*2); ctx.fill();
+  }
+  // 67. Hypercolor Resonance Cloud — organic cloud texture with a pulsing resonance ripple
+  let hrcT=0;
+  function drawHypercolorResonanceCloud(bass,mid,treble,overall){
+    hrcT+=0.01+overall*0.0003; const img=mdField(260),d=img.data,fw=_mdW,fh=_mdH,cx=fw/2,cy=fh/2,pulse=Math.sin(performance.now()*0.002)*0.5+0.5+beatFlash*0.3;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){ const dx=x-cx,dy=y-cy,r=Math.hypot(dx,dy); const n=noise2(x*0.02,y*0.02,hrcT)+noise2(x*0.05+40,y*0.05+40,hrcT*1.5)*0.5+Math.sin(r*0.08-hrcT*3)*0.15*pulse; const hue=(hueBase+n*170)%360; const rgb=hsvToRgb(hue,0.5,Math.max(0.15,Math.min(0.85,0.5+n*0.35))); const idx=(y*fw+x)*4; d[idx]=rgb[0];d[idx+1]=rgb[1];d[idx+2]=rgb[2];d[idx+3]=255; }
+    mdBlit();
   }
 
   function drawParticles(dt){
