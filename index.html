@@ -214,6 +214,7 @@
     <div class="badge" id="srcBadge">MIC</div>
     <div class="badge" id="verBadgeHud">v?.?</div>
     <div class="badge" id="bpmBadge">-- <span style="color:var(--hud-fg-dim)">bpm</span></div>
+    <div class="badge" id="gainBadge" style="display:none">1.0<span style="color:var(--hud-fg-dim)">x gain</span></div>
   </div>
   <div class="hudBottom">
     <div id="settingsPanel">
@@ -264,7 +265,7 @@
 (function(){
   "use strict";
 
-  const APP_VERSION = "v2.4";
+  const APP_VERSION = "v2.5";
 
   // ---------- canvas setup ----------
   const canvas = document.getElementById('scene');
@@ -302,8 +303,9 @@
   syncHudViewport();
 
   // ---------- audio ----------
-  let audioCtx, analyser, sourceNode, audioEl;
+  let audioCtx, analyser, gainNode, sourceNode, audioEl;
   let freqData, timeData;
+  let isMicMode = false;
   const FFT_SIZE = 512;
 
   function ensureAudioCtx(){
@@ -312,6 +314,8 @@
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = FFT_SIZE;
       analyser.smoothingTimeConstant = 0.35; // lower = snappier reaction to the beat
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 1.0;
       freqData = new Uint8Array(analyser.frequencyBinCount);
       timeData = new Uint8Array(analyser.fftSize);
     }
@@ -321,10 +325,12 @@
     ensureAudioCtx();
     try{
       const stream = await navigator.mediaDevices.getUserMedia({ audio:{
-        echoCancellation:false, noiseSuppression:false, autoGainControl:false
+        echoCancellation:false, noiseSuppression:true, autoGainControl:false
       }});
       sourceNode = audioCtx.createMediaStreamSource(stream);
-      sourceNode.connect(analyser);
+      sourceNode.connect(gainNode);
+      gainNode.connect(analyser);
+      isMicMode = true;
       document.getElementById('srcBadge').textContent = 'MIC LIVE';
       enterViz();
     }catch(err){
@@ -345,9 +351,12 @@
     if(!sourceNode || sourceNode._isFile !== true){
       sourceNode = audioCtx.createMediaElementSource(audioEl);
       sourceNode._isFile = true;
-      sourceNode.connect(analyser);
+      sourceNode.connect(gainNode);
+      gainNode.connect(analyser);
       analyser.connect(audioCtx.destination);
     }
+    isMicMode = false;
+    gainNode.gain.value = 1.0;
     document.getElementById('srcBadge').textContent = (file.name||'FILE').slice(0,18).toUpperCase();
     enterViz();
   }
@@ -364,6 +373,11 @@
   let beatIntervals = [];
   let bpmEstimate = 0;
 
+  // auto-gain control (boosts quiet mic input) and noise-floor tracking (rejects steady ambient noise)
+  let agcGain = 1.0;
+  let agcPeak = 0;
+  let noiseFloorBass = 0, noiseFloorMid = 0, noiseFloorTreble = 0;
+
   function detectBeat(bassEnergy, now){
     bassHistory.push(bassEnergy);
     if(bassHistory.length > HIST_LEN) bassHistory.shift();
@@ -372,7 +386,7 @@
     const sensitivity = parseFloat(document.getElementById('sens').value);
     const threshold = avg * (1.0 + 0.35*sensitivity) + variance*0.02;
     const minGap = 140; // ms cooldown to avoid double triggers
-    if(bassEnergy > threshold && bassEnergy > 18 && (now - lastBeatTime) > minGap){
+    if(bassEnergy > threshold && bassEnergy > 3 && (now - lastBeatTime) > minGap){
       const interval = now - lastBeatTime;
       if(lastBeatTime > 0 && interval < 2000 && interval > 220){
         beatIntervals.push(interval);
@@ -666,9 +680,35 @@
     analyser.getByteTimeDomainData(timeData);
 
     const nBins = freqData.length;
-    const bass = bandEnergy(freqData, 0, Math.floor(nBins*0.06));
-    const mid  = bandEnergy(freqData, Math.floor(nBins*0.06), Math.floor(nBins*0.28));
-    const treble = bandEnergy(freqData, Math.floor(nBins*0.28), Math.floor(nBins*0.75));
+    const rawBass = bandEnergy(freqData, 0, Math.floor(nBins*0.06));
+    const rawMid  = bandEnergy(freqData, Math.floor(nBins*0.06), Math.floor(nBins*0.28));
+    const rawTreble = bandEnergy(freqData, Math.floor(nBins*0.28), Math.floor(nBins*0.75));
+    const rawOverall = (rawBass+rawMid+rawTreble)/3;
+
+    // Auto-gain: quiet mic input (phone in a pocket, cracked car window) gets boosted over a
+    // couple seconds until it's using a healthy chunk of the 0-255 range; loud input gets
+    // pulled back down so it doesn't just pin at max and flatten all the dynamics.
+    if(isMicMode && gainNode){
+      agcPeak = Math.max(rawOverall, agcPeak*0.994);
+      const target = 130;
+      if(agcPeak < target*0.75 && agcGain < 12) agcGain *= 1.012;
+      else if(agcPeak > target*1.25 && agcGain > 0.3) agcGain *= 0.985;
+      gainNode.gain.value = agcGain;
+      const gb = document.getElementById('gainBadge');
+      gb.style.display = '';
+      gb.innerHTML = agcGain.toFixed(1) + '<span style="color:var(--hud-fg-dim)">x gain</span>';
+    }
+
+    // Noise floor: track the steady "quiet" baseline per band (rises slowly to follow constant
+    // ambient/road/engine noise, drops quickly when things actually go quiet) and subtract it —
+    // this keeps constant background noise from registering as musical energy or fake beats.
+    noiseFloorBass   = rawBass   < noiseFloorBass   ? rawBass   : noiseFloorBass   + (rawBass   - noiseFloorBass)   * 0.004;
+    noiseFloorMid    = rawMid    < noiseFloorMid    ? rawMid    : noiseFloorMid    + (rawMid    - noiseFloorMid)    * 0.004;
+    noiseFloorTreble = rawTreble < noiseFloorTreble ? rawTreble : noiseFloorTreble + (rawTreble - noiseFloorTreble) * 0.004;
+
+    const bass = Math.max(0, rawBass - noiseFloorBass);
+    const mid = Math.max(0, rawMid - noiseFloorMid);
+    const treble = Math.max(0, rawTreble - noiseFloorTreble);
     const overall = (bass+mid+treble)/3;
 
     const isBeat = detectBeat(bass, now);
